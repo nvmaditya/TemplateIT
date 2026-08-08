@@ -4,25 +4,85 @@
   "description": "Local Electron app for prompt templates with <<<{slot}>>> fill UI and version history",
   "main": "electron/main.cjs",
   "type": "module",
-  "scripts": {
-    "start": "electron .",
-    "test": "node --test tests/**/*.test.js",
-    "smoke:main": "node scripts/smoke-main.mjs"
+  "author": "TemplateIt contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/nvmaditya/templateit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nvmaditya/templateit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nvmaditya/templateit/issues"
   },
   "keywords": [
     "electron",
     "prompt",
-    "templates"
+    "templates",
+    "chatbot",
+    "local-first"
   ],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "electron": "^37.2.0"
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/**/*.test.js",
+    "smoke:main": "node scripts/smoke-main.mjs",
+    "prebuild": "npm test",
+    "build": "electron-builder --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:dir": "electron-builder --win dir --publish never",
+    "pack": "electron-builder --dir --publish never"
   },
   "dependencies": {
     "@phosphor-icons/web": "^2.1.2"
   },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.15.3"
+  },
   "allowScripts": {
-    "electron@37.10.3": true
+    "electron@37.10.3": true,
+    "electron-winstaller@5.4.0": true
+  },
+  "build": {
+    "appId": "com.templateit.app",
+    "productName": "TemplateIt",
+    "copyright": "Copyright © 2026 TemplateIt contributors",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "package.json",
+      "node_modules/@phosphor-icons/web/**/*"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TemplateIt"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    }
   }
 }
