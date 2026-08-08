@@ -7,6 +7,10 @@ import { parseSlots, fillTemplate } from '../domain/parse.js';
 
 const api = window.templateit;
 
+/** Long slot values become block inserts in the canvas instead of inline chips */
+const LONG_SLOT_CHARS = 72;
+const LONG_SLOT_LINES = 1;
+
 /** @type {{ id: string, title: string, body: string } | null} */
 let current = null;
 /** @type {Record<string, string>} */
@@ -15,6 +19,10 @@ let fillValues = {};
 let view = 'empty';
 /** @type {string | null} */
 let selectedHistoryId = null;
+/** @type {string | null} */
+let activeSlot = null;
+/** @type {string[]} */
+let slotLabels = [];
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -79,11 +87,33 @@ function formatWhen(iso) {
   }
 }
 
+function previewLine(text, max = 48) {
+  const one = String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!one) return 'Empty — click to fill';
+  return one.length > max ? one.slice(0, max - 1) + '…' : one;
+}
+
+function formatCount(text) {
+  const n = String(text || '').length;
+  if (n === 0) return 'Empty';
+  if (n < 1000) return `${n} chars`;
+  return `${(n / 1000).toFixed(1)}k chars`;
+}
+
+function isLongValue(val) {
+  const s = String(val || '');
+  if (!s) return false;
+  return s.length > LONG_SLOT_CHARS || s.includes('\n');
+}
+
 async function openTemplate(id) {
   const t = await api.getTemplate(id);
   if (!t) return;
   current = t;
   fillValues = {};
+  activeSlot = null;
   selectedHistoryId = null;
   $('#field-title').value = t.title || '';
   $('#field-body').value = t.body || '';
@@ -114,7 +144,6 @@ async function saveCurrent() {
 
 function enterFill() {
   if (!current) return;
-  // use latest editor fields without requiring save — but prefer saved body after save
   const body = $('#field-body').value;
   current = { ...current, title: $('#field-title').value, body };
   fillValues = { ...fillValues };
@@ -123,83 +152,166 @@ function enterFill() {
   setView('fill');
 }
 
+function selectSlot(label) {
+  activeSlot = label;
+  const compose = $('#slot-compose');
+  const editor = $('#slot-editor');
+  if (!label) {
+    compose.hidden = true;
+    return;
+  }
+  compose.hidden = false;
+  $('#slot-compose-label').textContent = label;
+  editor.value = fillValues[label] || '';
+  $('#slot-compose-count').textContent = formatCount(editor.value);
+  paintSlotRail();
+  editor.focus();
+}
+
+function onSlotEditorInput() {
+  if (!activeSlot) return;
+  const editor = $('#slot-editor');
+  fillValues[activeSlot] = editor.value;
+  $('#slot-compose-count').textContent = formatCount(editor.value);
+  paintSlotRail();
+  paintCanvas();
+}
+
+function paintSlotRail() {
+  const rail = $('#slot-rail');
+  rail.innerHTML = '';
+  for (const label of slotLabels) {
+    const val = fillValues[label] || '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.role = 'tab';
+    btn.className =
+      'slot-tab' +
+      (activeSlot === label ? ' active' : '') +
+      (val.trim() ? ' filled' : '');
+    btn.setAttribute('aria-selected', activeSlot === label ? 'true' : 'false');
+    btn.innerHTML = `
+      <span class="slot-tab-name"></span>
+      <span class="slot-tab-status"></span>
+      <span class="slot-tab-preview"></span>
+    `;
+    btn.querySelector('.slot-tab-name').textContent = label;
+    btn.querySelector('.slot-tab-status').textContent = val.trim()
+      ? formatCount(val)
+      : 'Empty';
+    btn.querySelector('.slot-tab-preview').textContent = previewLine(val);
+    btn.addEventListener('click', () => selectSlot(label));
+    rail.appendChild(btn);
+  }
+}
+
 function renderFill() {
   const body = current?.body || '';
-  const { labels, segments } = parseSlots(body);
-  const fields = $('#slot-fields');
+  const { labels } = parseSlots(body);
+  slotLabels = labels;
   const emptyHint = $('#slot-empty-hint');
-  fields.innerHTML = '';
   emptyHint.hidden = labels.length > 0;
 
   for (const label of labels) {
     if (fillValues[label] === undefined) fillValues[label] = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'slot-field';
-    const lab = document.createElement('label');
-    lab.htmlFor = `slot-${cssId(label)}`;
-    lab.textContent = label;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'slot-input';
-    input.id = `slot-${cssId(label)}`;
-    input.placeholder = `Value for ${label}`;
-    input.value = fillValues[label] || '';
-    input.addEventListener('input', () => {
-      fillValues[label] = input.value;
-      paintCanvasAndOutput();
-    });
-    wrap.append(lab, input);
-    fields.appendChild(wrap);
   }
 
-  paintCanvasAndOutput();
+  // Drop values for removed labels
+  for (const key of Object.keys(fillValues)) {
+    if (!labels.includes(key)) delete fillValues[key];
+  }
+
+  if (!labels.length) {
+    activeSlot = null;
+    $('#slot-compose').hidden = true;
+    $('#slot-rail').innerHTML = '';
+  } else if (!activeSlot || !labels.includes(activeSlot)) {
+    selectSlot(labels[0]);
+  } else {
+    selectSlot(activeSlot);
+  }
+
+  // Keep #slot-fields present for structure tests
+  const fields = $('#slot-fields');
+  if (fields) {
+    fields.innerHTML = labels
+      .map((l) => `<span data-slot-label="${l}"></span>`)
+      .join('');
+  }
+
+  paintCanvas();
 }
 
 function cssId(label) {
   return encodeURIComponent(label).replace(/%/g, '_');
 }
 
-function paintCanvasAndOutput() {
+function paintCanvas() {
   const body = current?.body || '';
   const { segments } = parseSlots(body);
   const canvas = $('#prompt-canvas');
   canvas.innerHTML = '';
+
   for (const seg of segments) {
     if (seg.type === 'text') {
-      canvas.appendChild(document.createTextNode(seg.value));
+      const span = document.createElement('span');
+      span.className = 'canvas-text';
+      span.textContent = seg.value;
+      canvas.appendChild(span);
     } else {
-      const chip = document.createElement('span');
       const val = fillValues[seg.label] || '';
-      chip.className = 'slot-chip' + (val ? ' filled' : '');
-      chip.textContent = val || `‹${seg.label}›`;
-      chip.title = seg.label;
-      canvas.appendChild(chip);
+      const long = isLongValue(val) || !val;
+      // Empty placeholders stay compact chips; long fills become blocks
+      if (val && long) {
+        const block = document.createElement('div');
+        block.className = 'slot-block filled';
+        block.dataset.slot = seg.label;
+        block.title = `Edit “${seg.label}”`;
+        const lab = document.createElement('span');
+        lab.className = 'slot-block-label';
+        lab.textContent = seg.label;
+        const content = document.createElement('span');
+        content.textContent = val;
+        block.append(lab, content);
+        block.addEventListener('click', () => selectSlot(seg.label));
+        canvas.appendChild(block);
+      } else {
+        const chip = document.createElement('span');
+        chip.className = 'slot-chip' + (val ? ' filled' : ' empty');
+        chip.dataset.slot = seg.label;
+        chip.textContent = val || `‹${seg.label}›`;
+        chip.title = `Edit “${seg.label}”`;
+        chip.addEventListener('click', () => selectSlot(seg.label));
+        canvas.appendChild(chip);
+      }
     }
   }
-  const filled = fillTemplate(body, fillValues);
-  $('#filled-output').textContent = filled;
-  return filled;
+
+  return fillTemplate(body, fillValues);
+}
+
+function getFilledText() {
+  return fillTemplate(current?.body || '', fillValues);
 }
 
 async function copyFilled() {
-  const filled = paintCanvasAndOutput();
+  paintCanvas();
+  const filled = getFilledText();
   await api.copyText(filled);
   showToast('Copied to clipboard');
 }
 
 async function saveVersion() {
   if (!current?.id) return;
-  // Persist editor body first so history ties to stable template
   await api.updateTemplate(current.id, {
     title: $('#field-title')?.value ?? current.title,
     body: current.body,
   });
-  const filledText = fillTemplate(current.body, fillValues);
+  const filledText = getFilledText();
   await api.saveHistory(current.id, {
     values: { ...fillValues },
     filledText,
   });
-  // Re-fetch template to confirm body intact
   const t = await api.getTemplate(current.id);
   if (t && t.body !== current.body) {
     console.error('Template body changed after history save');
@@ -236,7 +348,6 @@ async function openHistory() {
       selectedHistoryId = h.id;
       $('#history-detail').textContent = h.filledText || '';
       $('#btn-copy-history').hidden = false;
-      // rehydrate values for potential re-fill
       fillValues = { ...(h.values || {}) };
     });
     li.appendChild(btn);
@@ -264,6 +375,7 @@ function bind() {
   $('#btn-copy').addEventListener('click', copyFilled);
   $('#btn-save-version').addEventListener('click', saveVersion);
   $('#btn-copy-history').addEventListener('click', copyHistory);
+  $('#slot-editor').addEventListener('input', onSlotEditorInput);
 }
 
 async function boot() {

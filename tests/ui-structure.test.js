@@ -21,12 +21,16 @@ describe('UI structure (shipped renderer)', () => {
     assert.match(html, /id="field-body"/);
     assert.match(html, /id="view-fill"/);
     assert.match(html, /id="slot-fields"/);
+    assert.match(html, /id="slot-rail"/);
+    assert.match(html, /id="slot-editor"/);
     assert.match(html, /id="prompt-canvas"/);
-    assert.match(html, /id="filled-output"/);
     assert.match(html, /id="view-history"/);
     assert.match(html, /id="history-list"/);
     assert.match(html, /id="btn-copy"/);
     assert.match(html, /id="btn-save-version"/);
+    // Final plain text panel removed — copy uses fillTemplate, not a third surface
+    assert.doesNotMatch(html, /id="filled-output"/);
+    assert.doesNotMatch(html, /Final plain text/i);
   });
 
   it('uses Phosphor Light icon library (package + classes), not Lucide/FA alone', () => {
@@ -36,14 +40,19 @@ describe('UI structure (shipped renderer)', () => {
     assert.doesNotMatch(html, /lucide|fontawesome|material-icons/i);
   });
 
-  it('fill path drives shipped parse/fill modules', () => {
+  it('fill path drives shipped parse/fill modules and slot compose UX', () => {
     assert.match(appJs, /from ['"]\.\.\/domain\/parse\.js['"]/);
     assert.match(appJs, /parseSlots|fillTemplate/);
     assert.match(appJs, /copyText|saveHistory/);
+    assert.match(appJs, /selectSlot|slot-editor|activeSlot/);
   });
 
-  it('applies Ethereal Glass / premium styling tokens', () => {
+  it('applies Ethereal Glass / premium prose styling (not terminal mono)', () => {
     assert.match(css, /#050505|Ethereal|double-bezel|Plus Jakarta|Instrument Serif/i);
     assert.match(css, /cubic-bezier\(0\.32,\s*0\.72,\s*0,\s*1\)/);
+    assert.match(css, /prose-surface/);
+    // Prompt body / canvas use UI font, not Cascadia terminal mono as primary
+    assert.match(css, /\.textarea\.prose-surface|\.prompt-canvas/);
+    assert.doesNotMatch(css, /\.textarea\s*\{[^}]*Cascadia Code/);
   });
 });
