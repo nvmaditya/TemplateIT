@@ -10,4 +10,4 @@ Thumbs.db
 .electron-builder*
 *.exe
 !build/**
-
+macos/
