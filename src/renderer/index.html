@@ -29,10 +29,16 @@
             <p class="brand-sub">Prompt shells with fill history</p>
           </div>
 
-          <button type="button" class="btn btn-primary btn-equal" id="btn-new" data-action="new">
-            <i class="ph-light ph-plus" aria-hidden="true"></i>
-            <span>New template</span>
-          </button>
+          <div class="sidebar-actions">
+            <button type="button" class="btn btn-ghost btn-equal btn-block" id="btn-home" title="Home">
+              <i class="ph-light ph-house" aria-hidden="true"></i>
+              <span>Home</span>
+            </button>
+            <button type="button" class="btn btn-primary btn-equal btn-block" id="btn-new" data-action="new">
+              <i class="ph-light ph-plus" aria-hidden="true"></i>
+              <span>New template</span>
+            </button>
+          </div>
 
           <div class="lib-head">
             <span class="lib-label">Library</span>
@@ -52,12 +58,12 @@
       </aside>
 
       <main class="main">
-        <section class="view" id="view-empty" data-view="empty">
+        <section class="view view-empty-center" id="view-empty" data-view="empty">
           <div class="empty bezel">
             <div class="empty-inner">
               <i class="ph-light ph-text-aa empty-icon" aria-hidden="true"></i>
               <h2>No template selected</h2>
-              <p>Create a template, paste a prompt with <code>&lt;&lt;&lt;{slot}&gt;&gt;&gt;</code> markers, then fill and copy.</p>
+              <p>Create a template, choose a slot style, insert markers, then fill and copy.</p>
               <button type="button" class="btn btn-primary btn-equal" data-action="new">
                 <i class="ph-light ph-arrow-up-right" aria-hidden="true"></i>
                 <span>Create first template</span>
@@ -89,30 +95,62 @@
           </header>
 
           <div class="editor-stack">
-            <div class="field-bezel title-bezel full-width">
-              <div class="field-core field-core-tight full-width">
+            <div class="field-bezel title-bezel">
+              <div class="field-core field-core-tight">
                 <label class="field-label" for="field-title">Title</label>
                 <input type="text" id="field-title" class="input" placeholder="e.g. Code review prompt" autocomplete="off" />
               </div>
             </div>
 
-            <div class="field-bezel body-field flex-fill full-width">
-              <div class="field-core field-core-prose flex-col full-width">
-                <div class="lib-head body-toolbar">
+            <div class="field-bezel body-field flex-fill">
+              <div class="field-core field-core-prose flex-col">
+                <div class="body-head-row">
                   <label class="field-label" for="field-body">Prompt body</label>
-                  <div class="slot-insert" id="slot-insert">
-                    <span class="slot-insert-label">Insert slot</span>
-                    <div class="slot-chip-row" id="slot-preset-row"></div>
-                    <button type="button" class="slot-preset custom" id="btn-slot-custom" title="Custom label">
-                      <i class="ph-light ph-plus" aria-hidden="true"></i>
-                      Custom
-                    </button>
+                </div>
+
+                <!-- Complete Insert Slot component -->
+                <div class="slot-insert-card" id="slot-insert" data-component="slot-insert">
+                  <div class="slot-insert-head">
+                    <span class="lib-label">Insert slot</span>
+                    <span class="slot-insert-preview" id="slot-preview">{idea}</span>
+                  </div>
+                  <div class="slot-insert-row">
+                    <div class="slot-field">
+                      <label class="field-label" for="slot-style">Style</label>
+                      <select id="slot-style" class="select" aria-label="Slot delimiter style"></select>
+                    </div>
+                    <div class="slot-field slot-field-grow" id="custom-delim-fields" hidden>
+                      <label class="field-label" for="slot-open">Open</label>
+                      <input type="text" id="slot-open" class="input input-sm" placeholder="e.g. {{" maxlength="12" />
+                    </div>
+                    <div class="slot-field slot-field-grow" id="custom-delim-fields-close" hidden>
+                      <label class="field-label" for="slot-close">Close</label>
+                      <input type="text" id="slot-close" class="input input-sm" placeholder="e.g. }}" maxlength="12" />
+                    </div>
+                    <div class="slot-field slot-field-grow">
+                      <label class="field-label" for="slot-label-input">Label</label>
+                      <input
+                        type="text"
+                        id="slot-label-input"
+                        class="input input-sm"
+                        placeholder="idea"
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div class="slot-field slot-field-action">
+                      <label class="field-label">&nbsp;</label>
+                      <button type="button" class="btn btn-primary btn-equal" id="btn-insert-slot">
+                        <i class="ph-light ph-plus" aria-hidden="true"></i>
+                        <span>Insert</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
+
                 <textarea
                   id="field-body"
-                  class="textarea prose-surface full-width"
-                  placeholder="Paste your prompt. Insert slots from the presets above or type <<<{label}>>>."
+                  class="textarea prose-surface"
+                  placeholder="Paste your prompt. Use Insert slot to place markers with your chosen style."
                   spellcheck="true"
                 ></textarea>
               </div>
@@ -142,15 +180,15 @@
             </div>
           </header>
 
-          <div class="fill-grid flex-fill full-width">
+          <div class="fill-grid flex-fill">
             <div class="field-bezel fill-slots-bezel flex-fill">
-              <div class="field-core field-core-prose flex-col fill-slots-core full-width">
+              <div class="field-core field-core-prose flex-col fill-slots-core">
                 <div class="lib-head">
                   <span class="lib-label">Slots</span>
                   <i class="ph-light ph-brackets-curly" aria-hidden="true"></i>
                 </div>
                 <p class="hint slot-hint" id="slot-empty-hint" hidden>
-                  No <code>&lt;&lt;&lt;{…}&gt;&gt;&gt;</code> slots in this template.
+                  No slots found for this template’s delimiter style.
                 </p>
                 <div id="slot-rail" class="slot-rail" role="tablist" aria-label="Template slots"></div>
                 <div id="slot-compose" class="slot-compose" hidden>
@@ -160,7 +198,7 @@
                   </div>
                   <textarea
                     id="slot-editor"
-                    class="slot-editor prose-surface full-width"
+                    class="slot-editor prose-surface"
                     rows="8"
                     placeholder="Paste or type the value for this slot…"
                     spellcheck="true"
@@ -170,13 +208,13 @@
               </div>
             </div>
 
-            <div class="field-bezel fill-canvas-bezel flex-fill full-width">
-              <div class="field-core field-core-prose flex-col full-width">
+            <div class="field-bezel fill-canvas-bezel flex-fill">
+              <div class="field-core field-core-prose flex-col">
                 <div class="lib-head">
                   <span class="lib-label">Prompt canvas</span>
                   <i class="ph-light ph-article" aria-hidden="true"></i>
                 </div>
-                <div id="prompt-canvas" class="prompt-canvas prose-surface full-width" aria-live="polite"></div>
+                <div id="prompt-canvas" class="prompt-canvas prose-surface" aria-live="polite"></div>
               </div>
             </div>
           </div>
@@ -196,25 +234,31 @@
             </div>
           </header>
 
-          <div class="history-layout flex-fill full-width">
+          <div class="history-layout flex-fill">
             <div class="field-bezel flex-fill">
-              <div class="field-core field-core-prose flex-col full-width">
+              <div class="field-core field-core-prose flex-col">
                 <ul class="history-list flex-fill" id="history-list" role="list"></ul>
                 <p class="hint" id="history-empty" hidden>No saved versions yet. Fill the template and use Save version.</p>
               </div>
             </div>
-            <div class="field-bezel flex-fill full-width">
-              <div class="field-core field-core-prose flex-col full-width">
+            <div class="field-bezel flex-fill">
+              <div class="field-core field-core-prose flex-col">
                 <div class="lib-head">
                   <span class="lib-label">Snapshot</span>
                   <i class="ph-light ph-file-text" aria-hidden="true"></i>
                 </div>
                 <p class="history-note" id="history-note" hidden></p>
-                <div id="history-detail" class="history-detail prose-surface full-width">Select a version</div>
-                <button type="button" class="btn btn-primary btn-equal" id="btn-copy-history" hidden>
-                  <i class="ph-light ph-copy" aria-hidden="true"></i>
-                  <span>Copy snapshot</span>
-                </button>
+                <div id="history-detail" class="history-detail prose-surface">Select a version</div>
+                <div class="history-detail-actions">
+                  <button type="button" class="btn btn-primary btn-equal" id="btn-copy-history" hidden>
+                    <i class="ph-light ph-copy" aria-hidden="true"></i>
+                    <span>Copy snapshot</span>
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-equal btn-danger-text" id="btn-delete-history" hidden>
+                    <i class="ph-light ph-trash" aria-hidden="true"></i>
+                    <span>Delete version</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -222,7 +266,6 @@
       </main>
     </div>
 
-    <!-- Modal shell -->
     <div class="modal-root" id="modal-root" hidden>
       <div class="modal-backdrop" id="modal-backdrop"></div>
       <div class="modal-bezel" role="dialog" aria-modal="true" aria-labelledby="modal-title">

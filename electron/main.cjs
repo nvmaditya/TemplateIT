@@ -56,6 +56,7 @@ function registerIpc() {
     store.saveHistoryEntry(templateId, payload || {})
   );
   ipcMain.handle('history:get', (_e, id) => store.getHistoryEntry(id));
+  ipcMain.handle('history:delete', (_e, id) => store.deleteHistoryEntry(id));
   ipcMain.handle('clipboard:write', (_e, text) => {
     clipboard.writeText(text == null ? '' : String(text));
     return true;

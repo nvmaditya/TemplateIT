@@ -65,3 +65,13 @@ export function listHistoryForTemplate(history, templateId) {
     .slice()
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
 }
+
+/**
+ * Remove one history entry by id. Does not touch templates.
+ * @param {HistoryEntry[]} history
+ * @param {string} entryId
+ * @returns {HistoryEntry[]}
+ */
+export function removeHistoryEntry(history, entryId) {
+  return (history || []).filter((h) => h.id !== entryId);
+}

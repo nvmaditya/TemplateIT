@@ -10,7 +10,12 @@ import {
   updateTemplate,
   normalizeTemplate,
 } from './templates.js';
-import { appendHistory, createHistoryEntry, listHistoryForTemplate } from './history.js';
+import {
+  appendHistory,
+  createHistoryEntry,
+  listHistoryForTemplate,
+  removeHistoryEntry,
+} from './history.js';
 
 const TEMPLATES_FILE = 'templates.json';
 const HISTORY_FILE = 'history.json';
@@ -161,6 +166,18 @@ export function createStore(baseDir) {
 
     getHistoryEntry(id) {
       return listAllHistory().find((h) => h.id === id) || null;
+    },
+
+    /**
+     * Delete a single history version. Template body is untouched.
+     * @param {string} entryId
+     */
+    deleteHistoryEntry(entryId) {
+      const before = listAllHistory();
+      const next = removeHistoryEntry(before, entryId);
+      if (next.length === before.length) return false;
+      saveHistory(next);
+      return true;
     },
   };
 }

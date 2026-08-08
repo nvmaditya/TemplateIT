@@ -2,26 +2,21 @@
  * TemplateIt renderer — library, editor, fill canvas, history.
  */
 
-import { parseSlots, fillTemplate } from '../domain/parse.js';
+import {
+  parseSlots,
+  fillTemplate,
+  wrapSlot,
+  DELIMITER_PRESETS,
+  DEFAULT_DELIMITER,
+  normalizeDelimiter,
+  detectDelimiter,
+} from '../domain/parse.js';
 
 const api = window.templateit;
 
 const LONG_SLOT_CHARS = 72;
 
-const SLOT_PRESETS = [
-  'task',
-  'context',
-  'constraints',
-  'role',
-  'code',
-  'idea',
-  'input',
-  'output',
-  'jd',
-  'resume',
-];
-
-/** @type {{ id: string, title: string, body: string, archived?: boolean } | null} */
+/** @type {{ id: string, title: string, body: string, archived?: boolean, slotDelimiter?: { open: string, close: string, id?: string } } | null} */
 let current = null;
 /** @type {Record<string, string>} */
 let fillValues = {};
@@ -39,6 +34,8 @@ let showArchived = false;
 let modalOnConfirm = null;
 /** @type {string | null} */
 let openMenuId = null;
+/** @type {{ open: string, close: string, id?: string }} */
+let activeDelimiter = { ...DEFAULT_DELIMITER };
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -61,26 +58,30 @@ function setView(name) {
   });
 }
 
+function goHome() {
+  current = null;
+  fillValues = {};
+  activeSlot = null;
+  selectedHistoryId = null;
+  setView('empty');
+  refreshList();
+}
+
+function currentDelimiter() {
+  if (current?.slotDelimiter) return normalizeDelimiter(current.slotDelimiter);
+  return normalizeDelimiter(activeDelimiter);
+}
+
 /* ── Modal ─────────────────────────────────────────────── */
 
 function closeModal() {
-  const root = $('#modal-root');
-  root.hidden = true;
+  $('#modal-root').hidden = true;
   $('#modal-body').innerHTML = '';
   $('#modal-desc').hidden = true;
   modalOnConfirm = null;
 }
 
-/**
- * @param {object} opts
- * @param {string} opts.title
- * @param {string} [opts.desc]
- * @param {string|HTMLElement} opts.bodyHtml
- * @param {string} [opts.confirmLabel]
- * @param {boolean} [opts.danger]
- * @param {() => boolean|void|Promise<boolean|void>} opts.onConfirm return false to keep open
- */
-function openModal({ title, desc, bodyHtml, confirmLabel = 'Confirm', danger = false, onConfirm }) {
+function openModal({ title, desc, bodyHtml, confirmLabel = 'Confirm', onConfirm }) {
   $('#modal-title').textContent = title;
   const descEl = $('#modal-desc');
   if (desc) {
@@ -91,18 +92,12 @@ function openModal({ title, desc, bodyHtml, confirmLabel = 'Confirm', danger = f
   }
   const body = $('#modal-body');
   body.innerHTML = '';
-  if (typeof bodyHtml === 'string') {
-    body.innerHTML = bodyHtml;
-  } else if (bodyHtml) {
-    body.appendChild(bodyHtml);
-  }
-  const confirmBtn = $('#modal-confirm');
-  confirmBtn.textContent = confirmLabel;
-  confirmBtn.classList.toggle('btn-danger', Boolean(danger));
+  if (typeof bodyHtml === 'string') body.innerHTML = bodyHtml;
+  else if (bodyHtml) body.appendChild(bodyHtml);
+  $('#modal-confirm').textContent = confirmLabel;
   modalOnConfirm = onConfirm;
   $('#modal-root').hidden = false;
-  const focusable = body.querySelector('input, textarea, button');
-  if (focusable) focusable.focus();
+  body.querySelector('input, textarea, button, select')?.focus();
 }
 
 async function handleModalConfirm() {
@@ -123,8 +118,7 @@ async function refreshList() {
   );
   const ul = $('#template-list');
   ul.innerHTML = '';
-  const hint = $('#lib-mode-hint');
-  hint.hidden = !showArchived;
+  $('#lib-mode-hint').hidden = !showArchived;
 
   if (!list.length) {
     const li = document.createElement('li');
@@ -157,14 +151,9 @@ async function refreshList() {
     menuBtn.innerHTML = '<i class="ph-light ph-dots-three"></i>';
     const pop = document.createElement('div');
     pop.className = 'template-menu-pop';
-    pop.dataset.menuFor = t.id;
 
     const actions = [
-      {
-        label: 'Rename',
-        icon: 'ph-pencil-simple',
-        run: () => renameTemplate(t),
-      },
+      { label: 'Rename', icon: 'ph-pencil-simple', run: () => renameTemplate(t) },
       {
         label: t.archived ? 'Unarchive' : 'Archive',
         icon: t.archived ? 'ph-arrow-u-up-left' : 'ph-archive',
@@ -217,8 +206,7 @@ function closeAllMenus() {
 function formatWhen(iso) {
   if (!iso) return '';
   try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
+    return new Date(iso).toLocaleString(undefined, {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -246,18 +234,140 @@ function formatCount(text) {
 
 function isLongValue(val) {
   const s = String(val || '');
-  if (!s) return false;
-  return s.length > LONG_SLOT_CHARS || s.includes('\n');
+  return Boolean(s) && (s.length > LONG_SLOT_CHARS || s.includes('\n'));
 }
 
 function sanitizeLabel(raw) {
   return String(raw || '')
     .trim()
-    .replace(/[}{<>]/g, '')
     .replace(/\s+/g, '_');
 }
 
-/* ── Template CRUD UI ──────────────────────────────────── */
+/* ── Slot insert component ─────────────────────────────── */
+
+function initSlotInsert() {
+  const select = $('#slot-style');
+  select.innerHTML = '';
+  for (const p of DELIMITER_PRESETS) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.label;
+    select.appendChild(opt);
+  }
+  const custom = document.createElement('option');
+  custom.value = 'custom';
+  custom.textContent = 'Custom…';
+  select.appendChild(custom);
+
+  select.value = DEFAULT_DELIMITER.id;
+  select.addEventListener('change', onDelimiterUiChange);
+  $('#slot-open')?.addEventListener('input', updateSlotPreview);
+  $('#slot-close')?.addEventListener('input', updateSlotPreview);
+  $('#slot-label-input')?.addEventListener('input', updateSlotPreview);
+  $('#slot-label-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      insertSlotFromUi();
+    }
+  });
+  $('#btn-insert-slot')?.addEventListener('click', insertSlotFromUi);
+  updateSlotPreview();
+  syncCustomFields();
+}
+
+function onDelimiterUiChange() {
+  syncCustomFields();
+  updateSlotPreview();
+  // Persist delimiter choice on current template
+  if (current) {
+    const d = readDelimiterFromUi();
+    activeDelimiter = d;
+    current = { ...current, slotDelimiter: d };
+  }
+}
+
+function syncCustomFields() {
+  const isCustom = $('#slot-style').value === 'custom';
+  $('#custom-delim-fields').hidden = !isCustom;
+  $('#custom-delim-fields-close').hidden = !isCustom;
+  $('#slot-insert-row')?.classList.toggle('has-custom', isCustom);
+  const row = $('.slot-insert-row');
+  if (row) row.classList.toggle('has-custom', isCustom);
+}
+
+function readDelimiterFromUi() {
+  const style = $('#slot-style').value;
+  if (style === 'custom') {
+    const open = ($('#slot-open').value || '').trim();
+    const close = ($('#slot-close').value || '').trim();
+    if (!open || !close) return { ...DEFAULT_DELIMITER };
+    return normalizeDelimiter({ id: 'custom', open, close });
+  }
+  const preset = DELIMITER_PRESETS.find((p) => p.id === style);
+  return normalizeDelimiter(preset || DEFAULT_DELIMITER);
+}
+
+function setDelimiterUi(delimiter) {
+  const d = normalizeDelimiter(delimiter);
+  const select = $('#slot-style');
+  const preset = DELIMITER_PRESETS.find(
+    (p) => p.open === d.open && p.close === d.close
+  );
+  if (preset) {
+    select.value = preset.id;
+  } else {
+    select.value = 'custom';
+    $('#slot-open').value = d.open;
+    $('#slot-close').value = d.close;
+  }
+  syncCustomFields();
+  updateSlotPreview();
+}
+
+function updateSlotPreview() {
+  const d = readDelimiterFromUi();
+  const label = sanitizeLabel($('#slot-label-input')?.value) || 'idea';
+  const marker = wrapSlot(label, d);
+  const prev = $('#slot-preview');
+  if (prev) prev.textContent = marker;
+}
+
+function insertSlotFromUi() {
+  const d = readDelimiterFromUi();
+  if ($('#slot-style').value === 'custom' && (!d.open || !d.close)) {
+    showToast('Set custom open and close');
+    return;
+  }
+  const label = sanitizeLabel($('#slot-label-input')?.value);
+  if (!label) {
+    showToast('Enter a slot label');
+    $('#slot-label-input')?.focus();
+    return;
+  }
+  insertSlotAtCursor(label, d);
+}
+
+function insertSlotAtCursor(label, delimiter) {
+  const d = normalizeDelimiter(delimiter);
+  const ta = $('#field-body');
+  if (!ta) return;
+  const marker = wrapSlot(label, d);
+  const start = ta.selectionStart ?? ta.value.length;
+  const end = ta.selectionEnd ?? start;
+  ta.value = ta.value.slice(0, start) + marker + ta.value.slice(end);
+  const pos = start + marker.length;
+  ta.focus();
+  ta.setSelectionRange(pos, pos);
+
+  activeDelimiter = d;
+  if (current) {
+    current = { ...current, slotDelimiter: d, body: ta.value };
+  }
+  updateSlotPreview();
+  showToast(`Inserted ${marker}`);
+}
+
+/* ── Template CRUD ─────────────────────────────────────── */
 
 async function openTemplate(id) {
   const t = await api.getTemplate(id);
@@ -269,14 +379,26 @@ async function openTemplate(id) {
   $('#field-title').value = t.title || '';
   $('#field-body').value = t.body || '';
   $('#editor-heading').textContent = t.title || 'Untitled';
+
+  // Delimiter: stored → detect from body → default
+  let d = t.slotDelimiter
+    ? normalizeDelimiter(t.slotDelimiter)
+    : detectDelimiter(t.body);
+  // If body has no slots yet, keep stored/default
+  if (!t.body) d = normalizeDelimiter(t.slotDelimiter || DEFAULT_DELIMITER);
+  activeDelimiter = d;
+  setDelimiterUi(d);
+
   setView('editor');
   await refreshList();
 }
 
 async function createNew() {
+  const d = { ...DEFAULT_DELIMITER };
   const t = await api.createTemplate({
     title: 'Untitled template',
-    body: 'You are a helpful assistant.\n\nTask: <<<{task}>>>\nContext: <<<{context}>>>\nConstraints: <<<{constraints}>>>',
+    body: `You are a helpful assistant.\n\nTask: ${wrapSlot('task', d)}\nContext: ${wrapSlot('context', d)}\nConstraints: ${wrapSlot('constraints', d)}`,
+    slotDelimiter: d,
   });
   showArchived = false;
   syncArchiveToggle();
@@ -288,8 +410,14 @@ async function saveCurrent() {
   if (!current) return;
   const title = $('#field-title').value;
   const body = $('#field-body').value;
-  const updated = await api.updateTemplate(current.id, { title, body });
+  const slotDelimiter = readDelimiterFromUi();
+  const updated = await api.updateTemplate(current.id, {
+    title,
+    body,
+    slotDelimiter,
+  });
   current = updated;
+  activeDelimiter = normalizeDelimiter(updated.slotDelimiter);
   $('#editor-heading').textContent = updated.title || 'Untitled';
   await refreshList();
   showToast('Saved');
@@ -299,11 +427,10 @@ function renameTemplate(t) {
   openModal({
     title: 'Rename template',
     desc: 'Update the library title. Body and history stay the same.',
-    bodyHtml: `<input type="text" class="input" id="modal-input" value="" autocomplete="off" />`,
+    bodyHtml: `<input type="text" class="input" id="modal-input" autocomplete="off" />`,
     confirmLabel: 'Rename',
     onConfirm: async () => {
-      const input = $('#modal-input');
-      const title = (input?.value || '').trim();
+      const title = ($('#modal-input')?.value || '').trim();
       if (!title) {
         showToast('Title cannot be empty');
         return false;
@@ -318,7 +445,6 @@ function renameTemplate(t) {
       showToast('Renamed');
     },
   });
-  // set value after mount
   queueMicrotask(() => {
     const input = $('#modal-input');
     if (input) {
@@ -333,10 +459,7 @@ async function toggleArchive(t) {
   const updated = await api.updateTemplate(t.id, { archived });
   if (current?.id === t.id) {
     current = updated;
-    if (archived && !showArchived) {
-      current = null;
-      setView('empty');
-    }
+    if (archived && !showArchived) goHome();
   }
   await refreshList();
   showToast(archived ? 'Archived' : 'Restored from archive');
@@ -348,13 +471,9 @@ function deleteTemplateConfirm(t) {
     desc: `“${t.title || 'Untitled'}” and all of its fill history will be permanently removed.`,
     bodyHtml: '',
     confirmLabel: 'Delete',
-    danger: true,
     onConfirm: async () => {
       await api.deleteTemplate(t.id);
-      if (current?.id === t.id) {
-        current = null;
-        setView('empty');
-      }
+      if (current?.id === t.id) goHome();
       await refreshList();
       showToast('Deleted');
     },
@@ -367,67 +486,19 @@ function syncArchiveToggle() {
   btn.title = showArchived ? 'Show active library' : 'Show archived';
 }
 
-/* ── Slot insert ───────────────────────────────────────── */
-
-function renderSlotPresets() {
-  const row = $('#slot-preset-row');
-  if (!row) return;
-  row.innerHTML = '';
-  for (const label of SLOT_PRESETS) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'slot-preset';
-    b.textContent = label;
-    b.title = `Insert <<<{${label}}>>>`;
-    b.addEventListener('click', () => insertSlotAtCursor(label));
-    row.appendChild(b);
-  }
-}
-
-function insertSlotAtCursor(rawLabel) {
-  const label = sanitizeLabel(rawLabel);
-  if (!label) {
-    showToast('Invalid slot label');
-    return;
-  }
-  const ta = $('#field-body');
-  if (!ta) return;
-  const marker = `<<<{${label}}>>>`;
-  const start = ta.selectionStart ?? ta.value.length;
-  const end = ta.selectionEnd ?? start;
-  const before = ta.value.slice(0, start);
-  const after = ta.value.slice(end);
-  ta.value = before + marker + after;
-  const pos = start + marker.length;
-  ta.focus();
-  ta.setSelectionRange(pos, pos);
-  showToast(`Inserted <<<{${label}}>>>`);
-}
-
-function openCustomSlotModal() {
-  openModal({
-    title: 'Custom slot label',
-    desc: 'Letters, numbers, and underscores work best. Spaces become underscores.',
-    bodyHtml: `<input type="text" class="input" id="modal-input" placeholder="e.g. company_name" autocomplete="off" />`,
-    confirmLabel: 'Insert',
-    onConfirm: () => {
-      const val = $('#modal-input')?.value;
-      const label = sanitizeLabel(val);
-      if (!label) {
-        showToast('Enter a label');
-        return false;
-      }
-      insertSlotAtCursor(label);
-    },
-  });
-}
-
 /* ── Fill ──────────────────────────────────────────────── */
 
 function enterFill() {
   if (!current) return;
   const body = $('#field-body').value;
-  current = { ...current, title: $('#field-title').value, body };
+  const slotDelimiter = readDelimiterFromUi();
+  current = {
+    ...current,
+    title: $('#field-title').value,
+    body,
+    slotDelimiter,
+  };
+  activeDelimiter = slotDelimiter;
   fillValues = { ...fillValues };
   $('#fill-heading').textContent = current.title || 'Fill';
   renderFill();
@@ -471,7 +542,6 @@ function paintSlotRail() {
       'slot-tab' +
       (activeSlot === label ? ' active' : '') +
       (val.trim() ? ' filled' : '');
-    btn.setAttribute('aria-selected', activeSlot === label ? 'true' : 'false');
     btn.innerHTML = `
       <span class="slot-tab-name"></span>
       <span class="slot-tab-status"></span>
@@ -489,10 +559,10 @@ function paintSlotRail() {
 
 function renderFill() {
   const body = current?.body || '';
-  const { labels } = parseSlots(body);
+  const d = currentDelimiter();
+  const { labels } = parseSlots(body, d);
   slotLabels = labels;
-  const emptyHint = $('#slot-empty-hint');
-  emptyHint.hidden = labels.length > 0;
+  $('#slot-empty-hint').hidden = labels.length > 0;
 
   for (const label of labels) {
     if (fillValues[label] === undefined) fillValues[label] = '';
@@ -522,7 +592,8 @@ function renderFill() {
 
 function paintCanvas() {
   const body = current?.body || '';
-  const { segments } = parseSlots(body);
+  const d = currentDelimiter();
+  const { segments } = parseSlots(body, d);
   const canvas = $('#prompt-canvas');
   canvas.innerHTML = '';
 
@@ -534,12 +605,9 @@ function paintCanvas() {
       canvas.appendChild(span);
     } else {
       const val = fillValues[seg.label] || '';
-      const long = isLongValue(val);
-      if (val && long) {
+      if (val && isLongValue(val)) {
         const block = document.createElement('div');
         block.className = 'slot-block filled';
-        block.dataset.slot = seg.label;
-        block.title = `Edit “${seg.label}”`;
         const lab = document.createElement('span');
         lab.className = 'slot-block-label';
         lab.textContent = seg.label;
@@ -551,19 +619,17 @@ function paintCanvas() {
       } else {
         const chip = document.createElement('span');
         chip.className = 'slot-chip' + (val ? ' filled' : ' empty');
-        chip.dataset.slot = seg.label;
         chip.textContent = val || `‹${seg.label}›`;
-        chip.title = `Edit “${seg.label}”`;
         chip.addEventListener('click', () => selectSlot(seg.label));
         canvas.appendChild(chip);
       }
     }
   }
-  return fillTemplate(body, fillValues);
+  return fillTemplate(body, fillValues, d);
 }
 
 function getFilledText() {
-  return fillTemplate(current?.body || '', fillValues);
+  return fillTemplate(current?.body || '', fillValues, currentDelimiter());
 }
 
 async function copyFilled() {
@@ -576,7 +642,7 @@ function saveVersion() {
   if (!current?.id) return;
   openModal({
     title: 'Save version',
-    desc: 'Optional message describing this fill (like a commit message). Template body stays intact.',
+    desc: 'Optional message describing this fill. Template body stays intact.',
     bodyHtml: `<textarea id="modal-input" placeholder="e.g. Filled for Acme SWE role"></textarea>`,
     confirmLabel: 'Save version',
     onConfirm: async () => {
@@ -584,24 +650,30 @@ function saveVersion() {
       await api.updateTemplate(current.id, {
         title: $('#field-title')?.value ?? current.title,
         body: current.body,
+        slotDelimiter: currentDelimiter(),
       });
-      const filledText = getFilledText();
       await api.saveHistory(current.id, {
         values: { ...fillValues },
-        filledText,
+        filledText: getFilledText(),
         note: note || undefined,
       });
-      const t = await api.getTemplate(current.id);
-      current = t || current;
+      current = (await api.getTemplate(current.id)) || current;
       showToast(note ? 'Version saved with message' : 'Version saved');
     },
   });
 }
 
+/* ── History ───────────────────────────────────────────── */
+
 async function openHistory() {
   if (!current) return;
   $('#history-heading').textContent = `${current.title || 'Template'} · history`;
   selectedHistoryId = null;
+  await renderHistoryList();
+  setView('history');
+}
+
+async function renderHistoryList() {
   const entries = await api.listHistory(current.id);
   const ul = $('#history-list');
   ul.innerHTML = '';
@@ -611,50 +683,106 @@ async function openHistory() {
     : 'No versions yet';
   $('#history-note').hidden = true;
   $('#btn-copy-history').hidden = true;
+  $('#btn-delete-history').hidden = true;
 
   for (const h of entries) {
     const li = document.createElement('li');
+    li.className = 'history-row';
+
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'history-item';
-    const titleLine = h.note
-      ? h.note
-      : formatWhen(h.createdAt);
+    btn.className =
+      'history-item' + (selectedHistoryId === h.id ? ' active' : '');
+    const titleLine = h.note || formatWhen(h.createdAt);
     const metaLine = h.note
       ? formatWhen(h.createdAt)
       : (h.filledText || '').slice(0, 80).replace(/\s+/g, ' ') || '(empty)';
     btn.innerHTML = `<span class="t-title"></span><span class="t-meta"></span>`;
     btn.querySelector('.t-title').textContent = titleLine;
     btn.querySelector('.t-meta').textContent = metaLine;
-    btn.addEventListener('click', () => {
-      $$('.history-item').forEach((el) => el.classList.remove('active'));
-      btn.classList.add('active');
-      selectedHistoryId = h.id;
-      $('#history-detail').textContent = h.filledText || '';
-      const noteEl = $('#history-note');
-      if (h.note) {
-        noteEl.textContent = h.note;
-        noteEl.hidden = false;
-      } else {
-        noteEl.hidden = true;
-      }
-      $('#btn-copy-history').hidden = false;
-      fillValues = { ...(h.values || {}) };
+    btn.addEventListener('click', () => selectHistoryEntry(h));
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'history-delete-btn';
+    del.title = 'Delete version';
+    del.setAttribute('aria-label', 'Delete version');
+    del.innerHTML = '<i class="ph-light ph-trash"></i>';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      confirmDeleteHistory(h);
     });
-    li.appendChild(btn);
+
+    li.append(btn, del);
     ul.appendChild(li);
   }
-  setView('history');
+}
+
+function selectHistoryEntry(h) {
+  selectedHistoryId = h.id;
+  $$('.history-item').forEach((el) => el.classList.remove('active'));
+  // re-mark active via re-query after list paint is complex; set text now
+  $('#history-detail').textContent = h.filledText || '';
+  const noteEl = $('#history-note');
+  if (h.note) {
+    noteEl.textContent = h.note;
+    noteEl.hidden = false;
+  } else {
+    noteEl.hidden = true;
+  }
+  $('#btn-copy-history').hidden = false;
+  $('#btn-delete-history').hidden = false;
+  fillValues = { ...(h.values || {}) };
+  // highlight selected row
+  $$('.history-item').forEach((el) => {
+    const title = el.querySelector('.t-title')?.textContent;
+    const isMatch =
+      (h.note && title === h.note) ||
+      (!h.note && title === formatWhen(h.createdAt));
+    el.classList.toggle('active', isMatch);
+  });
+}
+
+function confirmDeleteHistory(h) {
+  const label = h.note || formatWhen(h.createdAt) || 'this version';
+  openModal({
+    title: 'Delete version?',
+    desc: `“${label}” will be removed permanently. The template body is not affected.`,
+    bodyHtml: '',
+    confirmLabel: 'Delete version',
+    onConfirm: async () => {
+      await api.deleteHistory(h.id);
+      if (selectedHistoryId === h.id) {
+        selectedHistoryId = null;
+        $('#history-detail').textContent = 'Select a version';
+        $('#history-note').hidden = true;
+        $('#btn-copy-history').hidden = true;
+        $('#btn-delete-history').hidden = true;
+      }
+      await renderHistoryList();
+      showToast('Version deleted');
+    },
+  });
+}
+
+function deleteSelectedHistory() {
+  if (!selectedHistoryId) return;
+  // find from current list via get
+  api.getHistoryEntry(selectedHistoryId).then((h) => {
+    if (h) confirmDeleteHistory(h);
+  });
 }
 
 async function copyHistory() {
-  const text = $('#history-detail').textContent || '';
-  await api.copyText(text);
+  await api.copyText($('#history-detail').textContent || '');
   showToast('Snapshot copied');
 }
 
+/* ── Bind ──────────────────────────────────────────────── */
+
 function bind() {
   $$('[data-action="new"]').forEach((el) => el.addEventListener('click', createNew));
+  $('#btn-home').addEventListener('click', goHome);
   $('#btn-save').addEventListener('click', saveCurrent);
   $('#btn-fill').addEventListener('click', async () => {
     await saveCurrent();
@@ -666,8 +794,8 @@ function bind() {
   $('#btn-copy').addEventListener('click', copyFilled);
   $('#btn-save-version').addEventListener('click', saveVersion);
   $('#btn-copy-history').addEventListener('click', copyHistory);
+  $('#btn-delete-history').addEventListener('click', deleteSelectedHistory);
   $('#slot-editor').addEventListener('input', onSlotEditorInput);
-  $('#btn-slot-custom').addEventListener('click', openCustomSlotModal);
   $('#btn-toggle-archived').addEventListener('click', async () => {
     showArchived = !showArchived;
     syncArchiveToggle();
@@ -683,7 +811,7 @@ function bind() {
     }
   });
   document.addEventListener('click', () => closeAllMenus());
-  renderSlotPresets();
+  initSlotInsert();
   syncArchiveToggle();
 }
 
@@ -694,12 +822,9 @@ async function boot() {
     return;
   }
   bind();
-  const list = await refreshList();
-  if (list.length) {
-    await openTemplate(list[0].id);
-  } else {
-    setView('empty');
-  }
+  await refreshList();
+  // Land on home (centered empty) rather than auto-opening first template
+  goHome();
 }
 
 boot().catch((err) => {

@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('templateit', {
   saveHistory: (templateId, payload) =>
     ipcRenderer.invoke('history:save', templateId, payload),
   getHistoryEntry: (id) => ipcRenderer.invoke('history:get', id),
+  deleteHistory: (id) => ipcRenderer.invoke('history:delete', id),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   dataDir: () => ipcRenderer.invoke('app:dataDir'),
 });

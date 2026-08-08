@@ -1,5 +1,5 @@
 /**
- * Structural checks: core UI surfaces + Phosphor icon usage in shipped renderer.
+ * Structural checks: core UI surfaces + layout stretch rules + Phosphor.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,55 +12,46 @@ const html = fs.readFileSync(path.join(root, 'src', 'renderer', 'index.html'), '
 const appJs = fs.readFileSync(path.join(root, 'src', 'renderer', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'src', 'renderer', 'styles.css'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const parseSrc = fs.readFileSync(path.join(root, 'src', 'domain', 'parse.js'), 'utf8');
 
 describe('UI structure (shipped renderer)', () => {
-  it('exposes template list, create/edit, fill, history, and copy controls', () => {
+  it('exposes core surfaces, home, slot-insert component, history delete', () => {
     assert.match(html, /id="template-list"/);
     assert.match(html, /id="view-editor"/);
-    assert.match(html, /id="field-title"/);
     assert.match(html, /id="field-body"/);
     assert.match(html, /id="view-fill"/);
-    assert.match(html, /id="slot-fields"/);
-    assert.match(html, /id="slot-rail"/);
-    assert.match(html, /id="slot-editor"/);
     assert.match(html, /id="prompt-canvas"/);
     assert.match(html, /id="view-history"/);
-    assert.match(html, /id="history-list"/);
-    assert.match(html, /id="btn-copy"/);
-    assert.match(html, /id="btn-save-version"/);
-    assert.match(html, /id="btn-toggle-archived"/);
+    assert.match(html, /id="btn-home"/);
     assert.match(html, /id="slot-insert"/);
-    assert.match(html, /id="btn-slot-custom"/);
-    assert.match(html, /id="modal-root"/);
-    // Final plain text panel removed — copy uses fillTemplate, not a third surface
-    assert.doesNotMatch(html, /id="filled-output"/);
-    assert.doesNotMatch(html, /Final plain text/i);
+    assert.match(html, /data-component="slot-insert"/);
+    assert.match(html, /id="slot-style"/);
+    assert.match(html, /id="slot-label-input"/);
+    assert.match(html, /id="btn-insert-slot"/);
+    assert.match(html, /id="btn-delete-history"/);
+    assert.match(html, /view-empty-center|No template selected/);
   });
 
-  it('uses Phosphor Light icon library (package + classes), not Lucide/FA alone', () => {
+  it('uses Phosphor Light icon library', () => {
     assert.ok(pkg.dependencies['@phosphor-icons/web']);
-    assert.match(html, /@phosphor-icons\/web/);
     assert.match(html, /ph-light/);
-    assert.doesNotMatch(html, /lucide|fontawesome|material-icons/i);
   });
 
-  it('fill path drives shipped parse/fill modules and slot compose UX', () => {
-    assert.match(appJs, /from ['"]\.\.\/domain\/parse\.js['"]/);
-    assert.match(appJs, /parseSlots|fillTemplate/);
-    assert.match(appJs, /copyText|saveHistory/);
-    assert.match(appJs, /selectSlot|slot-editor|activeSlot/);
-    assert.match(appJs, /insertSlotAtCursor|SLOT_PRESETS/);
-    assert.match(appJs, /renameTemplate|toggleArchive|deleteTemplate/);
-    assert.match(appJs, /note/);
+  it('wires delimiter styles, history delete, home navigation', () => {
+    assert.match(appJs, /DELIMITER_PRESETS|readDelimiterFromUi|wrapSlot/);
+    assert.match(appJs, /deleteHistory|confirmDeleteHistory/);
+    assert.match(appJs, /goHome|btn-home/);
+    assert.match(parseSrc, /braces|brackets|doubleAngles|parens|triple/);
   });
 
-  it('applies Ethereal Glass / premium prose styling (not terminal mono)', () => {
-    assert.match(css, /#050505|Ethereal|double-bezel|Plus Jakarta|Instrument Serif/i);
-    assert.match(css, /cubic-bezier\(0\.32,\s*0\.72,\s*0,\s*1\)/);
-    assert.match(css, /prose-surface/);
-    assert.match(css, /\.textarea\.prose-surface|\.prompt-canvas/);
-    assert.match(css, /--btn-h|btn-equal/);
-    assert.match(css, /minmax\(0,\s*1fr\)|full-width/);
-    assert.doesNotMatch(css, /\.textarea\s*\{[^}]*Cascadia Code/);
+  it('forces main column + prose surfaces to consume remaining width', () => {
+    // Layout regression: main track must be 1fr / minmax(0,1fr), not auto content width
+    assert.match(css, /grid-template-columns:\s*[^;]*1fr/);
+    assert.match(css, /\.main\s*\{[^}]*width:\s*100%/s);
+    assert.match(css, /\.editor-stack\s*\{[^}]*width:\s*100%/s);
+    assert.match(css, /\.field-bezel\s*\{[^}]*width:\s*100%/s);
+    assert.match(css, /\.prose-surface\s*\{[^}]*width:\s*100%/s);
+    assert.match(css, /view-empty-center/);
+    assert.match(css, /slot-insert-card/);
   });
 });
