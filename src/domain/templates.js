@@ -10,6 +10,7 @@ import { DEFAULT_DELIMITER, normalizeDelimiter } from './parse.js';
  * @property {string} title
  * @property {string} body
  * @property {boolean} archived
+ * @property {boolean} pinned
  * @property {{ open: string, close: string, id?: string }} slotDelimiter
  * @property {string} createdAt
  * @property {string} updatedAt
@@ -20,6 +21,7 @@ import { DEFAULT_DELIMITER, normalizeDelimiter } from './parse.js';
  * @param {string} [opts.title]
  * @param {string} [opts.body]
  * @param {boolean} [opts.archived]
+ * @param {boolean} [opts.pinned]
  * @param {{ open: string, close: string, id?: string }} [opts.slotDelimiter]
  * @param {() => string} [opts.idFactory]
  * @param {() => string} [opts.nowFactory]
@@ -29,6 +31,7 @@ export function createTemplate({
   title = 'Untitled',
   body = '',
   archived = false,
+  pinned = false,
   slotDelimiter,
   idFactory = () => crypto.randomUUID(),
   nowFactory = () => new Date().toISOString(),
@@ -39,6 +42,7 @@ export function createTemplate({
     title: title == null ? 'Untitled' : String(title),
     body: body == null ? '' : String(body),
     archived: Boolean(archived),
+    pinned: Boolean(pinned),
     slotDelimiter: normalizeDelimiter(slotDelimiter || DEFAULT_DELIMITER),
     createdAt: now,
     updatedAt: now,
@@ -46,9 +50,9 @@ export function createTemplate({
 }
 
 /**
- * Update title/body/archived/delimiter; returns a new template. Does not touch history.
+ * Update title/body/archived/pinned/delimiter; returns a new template. Does not touch history.
  * @param {Template} template
- * @param {{ title?: string, body?: string, archived?: boolean, slotDelimiter?: { open: string, close: string } }} patch
+ * @param {{ title?: string, body?: string, archived?: boolean, pinned?: boolean, slotDelimiter?: { open: string, close: string } }} patch
  * @param {() => string} [nowFactory]
  * @returns {Template}
  */
@@ -61,6 +65,8 @@ export function updateTemplate(template, patch, nowFactory = () => new Date().to
       patch.archived !== undefined
         ? Boolean(patch.archived)
         : Boolean(template.archived),
+    pinned:
+      patch.pinned !== undefined ? Boolean(patch.pinned) : Boolean(template.pinned),
     slotDelimiter:
       patch.slotDelimiter !== undefined
         ? normalizeDelimiter(patch.slotDelimiter)
@@ -69,12 +75,13 @@ export function updateTemplate(template, patch, nowFactory = () => new Date().to
   };
 }
 
-/** Normalize legacy records missing archived / slotDelimiter. */
+/** Normalize legacy records missing archived / pinned / slotDelimiter. */
 export function normalizeTemplate(t) {
   if (!t || typeof t !== 'object') return t;
   return {
     ...t,
     archived: Boolean(t.archived),
+    pinned: Boolean(t.pinned),
     slotDelimiter: normalizeDelimiter(t.slotDelimiter || DEFAULT_DELIMITER),
   };
 }

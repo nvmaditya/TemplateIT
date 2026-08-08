@@ -15,7 +15,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const parseSrc = fs.readFileSync(path.join(root, 'src', 'domain', 'parse.js'), 'utf8');
 
 describe('UI structure (shipped renderer)', () => {
-  it('exposes core surfaces, home, slot-insert component, history delete', () => {
+  it('exposes core surfaces, home, retractable slot-insert, pin, history delete', () => {
     assert.match(html, /id="template-list"/);
     assert.match(html, /id="view-editor"/);
     assert.match(html, /id="field-body"/);
@@ -24,12 +24,17 @@ describe('UI structure (shipped renderer)', () => {
     assert.match(html, /id="view-history"/);
     assert.match(html, /id="btn-home"/);
     assert.match(html, /id="slot-insert"/);
-    assert.match(html, /data-component="slot-insert"/);
-    assert.match(html, /id="slot-style"/);
+    assert.match(html, /id="slot-insert-toggle"/);
+    assert.match(html, /id="slot-insert-panel"/);
+    assert.match(html, /id="slot-open"/);
+    assert.match(html, /id="slot-close"/);
     assert.match(html, /id="slot-label-input"/);
     assert.match(html, /id="btn-insert-slot"/);
     assert.match(html, /id="btn-delete-history"/);
-    assert.match(html, /view-empty-center|No template selected/);
+    assert.match(html, /id="pinned-grid"/);
+    assert.match(html, /Create new template/);
+    assert.doesNotMatch(html, /Create first template/);
+    assert.doesNotMatch(html, /id="slot-style"/);
   });
 
   it('uses Phosphor Light icon library', () => {
@@ -37,21 +42,21 @@ describe('UI structure (shipped renderer)', () => {
     assert.match(html, /ph-light/);
   });
 
-  it('wires delimiter styles, history delete, home navigation', () => {
-    assert.match(appJs, /DELIMITER_PRESETS|readDelimiterFromUi|wrapSlot/);
+  it('wires custom delimiter, pin, history delete, home navigation', () => {
+    assert.match(appJs, /readDelimiterFromUi|wrapSlot|setSlotInsertExpanded/);
     assert.match(appJs, /deleteHistory|confirmDeleteHistory/);
-    assert.match(appJs, /goHome|btn-home/);
-    assert.match(parseSrc, /braces|brackets|doubleAngles|parens|triple/);
+    assert.match(appJs, /goHome|btn-home|renderPinnedHome|togglePin/);
+    assert.match(parseSrc, /triple|<<<\{/);
+    assert.match(parseSrc, /DEFAULT_DELIMITER[\s\S]*triple|id: 'triple'/);
   });
 
   it('forces main column + prose surfaces to consume remaining width', () => {
-    // Layout regression: main track must be 1fr / minmax(0,1fr), not auto content width
     assert.match(css, /grid-template-columns:\s*[^;]*1fr/);
     assert.match(css, /\.main\s*\{[^}]*width:\s*100%/s);
     assert.match(css, /\.editor-stack\s*\{[^}]*width:\s*100%/s);
     assert.match(css, /\.field-bezel\s*\{[^}]*width:\s*100%/s);
     assert.match(css, /\.prose-surface\s*\{[^}]*width:\s*100%/s);
-    assert.match(css, /view-empty-center/);
-    assert.match(css, /slot-insert-card/);
+    assert.match(css, /view-home|pinned-grid/);
+    assert.match(css, /slot-insert-card|slot-insert-toggle/);
   });
 });

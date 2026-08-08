@@ -23,7 +23,15 @@ const triple = DELIMITER_PRESETS.find((p) => p.id === 'triple');
 const braces = DELIMITER_PRESETS.find((p) => p.id === 'braces');
 
 describe('parseSlots', () => {
-  it('extracts multiple distinct labels with default braces style', () => {
+  it('default delimiter is <<<{label}>>>', () => {
+    assert.equal(triple.open, '<<<{');
+    assert.equal(triple.close, '}>>>');
+    const body = 'Task: <<<{task}>>> and <<<{context}>>>';
+    const { labels } = parseSlots(body); // default
+    assert.deepEqual(labels, ['task', 'context']);
+  });
+
+  it('extracts multiple distinct labels with braces style', () => {
     const body = 'You are {role}. Task: {task}. Context: {role}.';
     const { labels, segments } = parseSlots(body, braces);
     assert.deepEqual(labels, ['role', 'task']);
@@ -31,7 +39,7 @@ describe('parseSlots', () => {
     assert.equal(slotSegs.length, 3);
   });
 
-  it('supports triple legacy delimiter', () => {
+  it('supports triple delimiter explicitly', () => {
     const body =
       'You are <<<{role}>>>. Task: <<<{task}>>>. Context: <<<{role}>>>.';
     const { labels } = parseSlots(body, triple);
@@ -131,16 +139,19 @@ describe('history + template immutability', () => {
     );
   });
 
-  it('supports rename and archive without clearing body', () => {
+  it('supports rename, pin, and archive without clearing body', () => {
     const t = createTemplate({
       title: 'Old',
-      body: 'keep {x}',
+      body: 'keep <<<{x}>>>',
       idFactory: () => 'id2',
       nowFactory: () => 't1',
     });
-    const renamed = updateTemplate(t, { title: 'New' }, () => 't2');
+    assert.equal(t.pinned, false);
+    assert.equal(t.slotDelimiter.open, '<<<{');
+    const renamed = updateTemplate(t, { title: 'New', pinned: true }, () => 't2');
     assert.equal(renamed.title, 'New');
-    assert.equal(renamed.body, 'keep {x}');
+    assert.equal(renamed.pinned, true);
+    assert.equal(renamed.body, 'keep <<<{x}>>>');
     const archived = updateTemplate(renamed, { archived: true }, () => 't3');
     assert.equal(archived.archived, true);
   });

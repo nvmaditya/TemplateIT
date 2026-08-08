@@ -6,7 +6,6 @@ import {
   parseSlots,
   fillTemplate,
   wrapSlot,
-  DELIMITER_PRESETS,
   DEFAULT_DELIMITER,
   normalizeDelimiter,
   detectDelimiter,
@@ -58,13 +57,43 @@ function setView(name) {
   });
 }
 
-function goHome() {
+async function goHome() {
   current = null;
   fillValues = {};
   activeSlot = null;
   selectedHistoryId = null;
   setView('empty');
-  refreshList();
+  await refreshList();
+  await renderPinnedHome();
+}
+
+async function renderPinnedHome() {
+  const section = $('#pinned-section');
+  const grid = $('#pinned-grid');
+  if (!section || !grid) return;
+  const all = await api.listTemplates({ includeArchived: false });
+  const pinned = all.filter((t) => t.pinned && !t.archived);
+  grid.innerHTML = '';
+  if (!pinned.length) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  for (const t of pinned) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'pinned-card';
+    card.setAttribute('role', 'listitem');
+    card.innerHTML = `
+      <span class="pinned-card-pin" aria-hidden="true"><i class="ph-light ph-push-pin"></i></span>
+      <span class="pinned-card-title"></span>
+      <span class="pinned-card-meta"></span>
+    `;
+    card.querySelector('.pinned-card-title').textContent = t.title || 'Untitled';
+    card.querySelector('.pinned-card-meta').textContent = formatWhen(t.updatedAt);
+    card.addEventListener('click', () => openTemplate(t.id));
+    grid.appendChild(card);
+  }
 }
 
 function currentDelimiter() {
@@ -139,7 +168,10 @@ async function refreshList() {
     btn.innerHTML = `<span class="t-title"></span><span class="t-meta"></span>`;
     btn.querySelector('.t-title').textContent = t.title || 'Untitled';
     btn.querySelector('.t-meta').textContent =
-      (t.archived ? 'Archived · ' : '') + formatWhen(t.updatedAt);
+      (t.archived ? 'Archived · ' : '') +
+      (t.pinned ? 'Pinned · ' : '') +
+      formatWhen(t.updatedAt);
+    if (t.pinned) btn.classList.add('is-pinned');
     btn.addEventListener('click', () => openTemplate(t.id));
 
     const menuWrap = document.createElement('div');
@@ -154,6 +186,11 @@ async function refreshList() {
 
     const actions = [
       { label: 'Rename', icon: 'ph-pencil-simple', run: () => renameTemplate(t) },
+      {
+        label: t.pinned ? 'Unpin from home' : 'Pin to home',
+        icon: 'ph-push-pin',
+        run: () => togglePin(t),
+      },
       {
         label: t.archived ? 'Unarchive' : 'Archive',
         icon: t.archived ? 'ph-arrow-u-up-left' : 'ph-archive',
@@ -243,26 +280,21 @@ function sanitizeLabel(raw) {
     .replace(/\s+/g, '_');
 }
 
-/* ── Slot insert component ─────────────────────────────── */
+/* ── Slot insert (retractable, custom open/close, one style per template) ── */
+
+let slotInsertOpen = false;
 
 function initSlotInsert() {
-  const select = $('#slot-style');
-  select.innerHTML = '';
-  for (const p of DELIMITER_PRESETS) {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.label;
-    select.appendChild(opt);
-  }
-  const custom = document.createElement('option');
-  custom.value = 'custom';
-  custom.textContent = 'Custom…';
-  select.appendChild(custom);
+  const openEl = $('#slot-open');
+  const closeEl = $('#slot-close');
+  if (openEl && !openEl.value) openEl.value = DEFAULT_DELIMITER.open;
+  if (closeEl && !closeEl.value) closeEl.value = DEFAULT_DELIMITER.close;
 
-  select.value = DEFAULT_DELIMITER.id;
-  select.addEventListener('change', onDelimiterUiChange);
-  $('#slot-open')?.addEventListener('input', updateSlotPreview);
-  $('#slot-close')?.addEventListener('input', updateSlotPreview);
+  $('#slot-insert-toggle')?.addEventListener('click', () => {
+    setSlotInsertExpanded(!slotInsertOpen);
+  });
+  openEl?.addEventListener('input', onDelimiterUiChange);
+  closeEl?.addEventListener('input', onDelimiterUiChange);
   $('#slot-label-input')?.addEventListener('input', updateSlotPreview);
   $('#slot-label-input')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -271,14 +303,23 @@ function initSlotInsert() {
     }
   });
   $('#btn-insert-slot')?.addEventListener('click', insertSlotFromUi);
+  setSlotInsertExpanded(false);
   updateSlotPreview();
-  syncCustomFields();
+}
+
+function setSlotInsertExpanded(open) {
+  slotInsertOpen = open;
+  const panel = $('#slot-insert-panel');
+  const toggle = $('#slot-insert-toggle');
+  const card = $('#slot-insert');
+  if (panel) panel.hidden = !open;
+  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (card) card.classList.toggle('is-open', open);
 }
 
 function onDelimiterUiChange() {
-  syncCustomFields();
   updateSlotPreview();
-  // Persist delimiter choice on current template
+  // Live-update in-memory delimiter; persisted on Save / Insert
   if (current) {
     const d = readDelimiterFromUi();
     activeDelimiter = d;
@@ -286,41 +327,19 @@ function onDelimiterUiChange() {
   }
 }
 
-function syncCustomFields() {
-  const isCustom = $('#slot-style').value === 'custom';
-  $('#custom-delim-fields').hidden = !isCustom;
-  $('#custom-delim-fields-close').hidden = !isCustom;
-  $('#slot-insert-row')?.classList.toggle('has-custom', isCustom);
-  const row = $('.slot-insert-row');
-  if (row) row.classList.toggle('has-custom', isCustom);
-}
-
 function readDelimiterFromUi() {
-  const style = $('#slot-style').value;
-  if (style === 'custom') {
-    const open = ($('#slot-open').value || '').trim();
-    const close = ($('#slot-close').value || '').trim();
-    if (!open || !close) return { ...DEFAULT_DELIMITER };
-    return normalizeDelimiter({ id: 'custom', open, close });
-  }
-  const preset = DELIMITER_PRESETS.find((p) => p.id === style);
-  return normalizeDelimiter(preset || DEFAULT_DELIMITER);
+  const open = ($('#slot-open')?.value || '').trim();
+  const close = ($('#slot-close')?.value || '').trim();
+  if (!open || !close) return { ...DEFAULT_DELIMITER };
+  return normalizeDelimiter({ id: 'custom', open, close });
 }
 
 function setDelimiterUi(delimiter) {
   const d = normalizeDelimiter(delimiter);
-  const select = $('#slot-style');
-  const preset = DELIMITER_PRESETS.find(
-    (p) => p.open === d.open && p.close === d.close
-  );
-  if (preset) {
-    select.value = preset.id;
-  } else {
-    select.value = 'custom';
-    $('#slot-open').value = d.open;
-    $('#slot-close').value = d.close;
-  }
-  syncCustomFields();
+  const openEl = $('#slot-open');
+  const closeEl = $('#slot-close');
+  if (openEl) openEl.value = d.open;
+  if (closeEl) closeEl.value = d.close;
   updateSlotPreview();
 }
 
@@ -332,10 +351,22 @@ function updateSlotPreview() {
   if (prev) prev.textContent = marker;
 }
 
+async function persistDelimiter(d) {
+  if (!current?.id) return;
+  const updated = await api.updateTemplate(current.id, {
+    slotDelimiter: d,
+    // keep title/body as currently edited when available
+    title: $('#field-title')?.value ?? current.title,
+    body: $('#field-body')?.value ?? current.body,
+  });
+  current = updated;
+  activeDelimiter = normalizeDelimiter(updated.slotDelimiter);
+}
+
 function insertSlotFromUi() {
   const d = readDelimiterFromUi();
-  if ($('#slot-style').value === 'custom' && (!d.open || !d.close)) {
-    showToast('Set custom open and close');
+  if (!d.open || !d.close) {
+    showToast('Set open and close markers');
     return;
   }
   const label = sanitizeLabel($('#slot-label-input')?.value);
@@ -347,7 +378,7 @@ function insertSlotFromUi() {
   insertSlotAtCursor(label, d);
 }
 
-function insertSlotAtCursor(label, delimiter) {
+async function insertSlotAtCursor(label, delimiter) {
   const d = normalizeDelimiter(delimiter);
   const ta = $('#field-body');
   if (!ta) return;
@@ -362,6 +393,8 @@ function insertSlotAtCursor(label, delimiter) {
   activeDelimiter = d;
   if (current) {
     current = { ...current, slotDelimiter: d, body: ta.value };
+    // Save this template’s single slot style
+    await persistDelimiter(d);
   }
   updateSlotPreview();
   showToast(`Inserted ${marker}`);
@@ -380,14 +413,14 @@ async function openTemplate(id) {
   $('#field-body').value = t.body || '';
   $('#editor-heading').textContent = t.title || 'Untitled';
 
-  // Delimiter: stored → detect from body → default
+  // One delimiter style per template (stored, or detect from body, else default <<<{}>>>)
   let d = t.slotDelimiter
     ? normalizeDelimiter(t.slotDelimiter)
-    : detectDelimiter(t.body);
-  // If body has no slots yet, keep stored/default
-  if (!t.body) d = normalizeDelimiter(t.slotDelimiter || DEFAULT_DELIMITER);
+    : detectDelimiter(t.body || '');
+  if (!t.slotDelimiter && !t.body) d = { ...DEFAULT_DELIMITER };
   activeDelimiter = d;
   setDelimiterUi(d);
+  setSlotInsertExpanded(false);
 
   setView('editor');
   await refreshList();
@@ -454,14 +487,28 @@ function renameTemplate(t) {
   });
 }
 
+async function togglePin(t) {
+  const pinned = !t.pinned;
+  const updated = await api.updateTemplate(t.id, { pinned });
+  if (current?.id === t.id) current = updated;
+  await refreshList();
+  if (view === 'empty') await renderPinnedHome();
+  showToast(pinned ? 'Pinned to home' : 'Unpinned from home');
+}
+
 async function toggleArchive(t) {
   const archived = !t.archived;
-  const updated = await api.updateTemplate(t.id, { archived });
+  // Archiving clears pin from active home
+  const updated = await api.updateTemplate(t.id, {
+    archived,
+    ...(archived ? { pinned: false } : {}),
+  });
   if (current?.id === t.id) {
     current = updated;
-    if (archived && !showArchived) goHome();
+    if (archived && !showArchived) await goHome();
   }
   await refreshList();
+  if (view === 'empty') await renderPinnedHome();
   showToast(archived ? 'Archived' : 'Restored from archive');
 }
 
@@ -473,8 +520,9 @@ function deleteTemplateConfirm(t) {
     confirmLabel: 'Delete',
     onConfirm: async () => {
       await api.deleteTemplate(t.id);
-      if (current?.id === t.id) goHome();
+      if (current?.id === t.id) await goHome();
       await refreshList();
+      if (view === 'empty') await renderPinnedHome();
       showToast('Deleted');
     },
   });
@@ -823,8 +871,8 @@ async function boot() {
   }
   bind();
   await refreshList();
-  // Land on home (centered empty) rather than auto-opening first template
-  goHome();
+  // Land on home rather than auto-opening first template
+  await goHome();
 }
 
 boot().catch((err) => {

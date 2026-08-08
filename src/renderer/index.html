@@ -58,16 +58,26 @@
       </aside>
 
       <main class="main">
-        <section class="view view-empty-center" id="view-empty" data-view="empty">
-          <div class="empty bezel">
-            <div class="empty-inner">
-              <i class="ph-light ph-text-aa empty-icon" aria-hidden="true"></i>
-              <h2>No template selected</h2>
-              <p>Create a template, choose a slot style, insert markers, then fill and copy.</p>
-              <button type="button" class="btn btn-primary btn-equal" data-action="new">
-                <i class="ph-light ph-arrow-up-right" aria-hidden="true"></i>
-                <span>Create first template</span>
-              </button>
+        <section class="view view-home" id="view-empty" data-view="empty">
+          <div class="home-stack">
+            <div class="empty bezel">
+              <div class="empty-inner">
+                <i class="ph-light ph-text-aa empty-icon" aria-hidden="true"></i>
+                <h2>No template selected</h2>
+                <p>Create a template, set your slot markers, then fill and copy.</p>
+                <button type="button" class="btn btn-primary btn-equal" data-action="new">
+                  <i class="ph-light ph-plus" aria-hidden="true"></i>
+                  <span>Create new template</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="pinned-section" id="pinned-section" hidden>
+              <div class="lib-head pinned-head">
+                <span class="lib-label">Pinned</span>
+                <i class="ph-light ph-push-pin" aria-hidden="true"></i>
+              </div>
+              <div class="pinned-grid" id="pinned-grid" role="list"></div>
             </div>
           </div>
         </section>
@@ -108,41 +118,52 @@
                   <label class="field-label" for="field-body">Prompt body</label>
                 </div>
 
-                <!-- Complete Insert Slot component -->
+                <!-- Retractable custom slot insert (one style per template, default <<<{}>>>) -->
                 <div class="slot-insert-card" id="slot-insert" data-component="slot-insert">
-                  <div class="slot-insert-head">
-                    <span class="lib-label">Insert slot</span>
-                    <span class="slot-insert-preview" id="slot-preview">{idea}</span>
-                  </div>
-                  <div class="slot-insert-row">
-                    <div class="slot-field">
-                      <label class="field-label" for="slot-style">Style</label>
-                      <select id="slot-style" class="select" aria-label="Slot delimiter style"></select>
-                    </div>
-                    <div class="slot-field slot-field-grow" id="custom-delim-fields" hidden>
-                      <label class="field-label" for="slot-open">Open</label>
-                      <input type="text" id="slot-open" class="input input-sm" placeholder="e.g. {{" maxlength="12" />
-                    </div>
-                    <div class="slot-field slot-field-grow" id="custom-delim-fields-close" hidden>
-                      <label class="field-label" for="slot-close">Close</label>
-                      <input type="text" id="slot-close" class="input input-sm" placeholder="e.g. }}" maxlength="12" />
-                    </div>
-                    <div class="slot-field slot-field-grow">
-                      <label class="field-label" for="slot-label-input">Label</label>
-                      <input
-                        type="text"
-                        id="slot-label-input"
-                        class="input input-sm"
-                        placeholder="idea"
-                        autocomplete="off"
-                      />
-                    </div>
-                    <div class="slot-field slot-field-action">
-                      <label class="field-label">&nbsp;</label>
-                      <button type="button" class="btn btn-primary btn-equal" id="btn-insert-slot">
-                        <i class="ph-light ph-plus" aria-hidden="true"></i>
-                        <span>Insert</span>
-                      </button>
+                  <button
+                    type="button"
+                    class="slot-insert-toggle"
+                    id="slot-insert-toggle"
+                    aria-expanded="false"
+                    aria-controls="slot-insert-panel"
+                  >
+                    <span class="slot-insert-toggle-left">
+                      <i class="ph-light ph-caret-right slot-caret" aria-hidden="true"></i>
+                      <span class="lib-label">Insert slot</span>
+                      <span class="slot-insert-preview" id="slot-preview">&lt;&lt;&lt;{idea}&gt;&gt;&gt;</span>
+                    </span>
+                    <span class="slot-insert-hint">One style per template · saved with template</span>
+                  </button>
+                  <div class="slot-insert-panel" id="slot-insert-panel" hidden>
+                    <p class="hint slot-style-hint">
+                      Custom open/close for this template only. Default is <code>&lt;&lt;&lt;{label}&gt;&gt;&gt;</code>.
+                    </p>
+                    <div class="slot-insert-row">
+                      <div class="slot-field slot-field-grow">
+                        <label class="field-label" for="slot-open">Open</label>
+                        <input type="text" id="slot-open" class="input input-sm" placeholder="<<<{" maxlength="16" />
+                      </div>
+                      <div class="slot-field slot-field-grow">
+                        <label class="field-label" for="slot-close">Close</label>
+                        <input type="text" id="slot-close" class="input input-sm" placeholder="}>>>" maxlength="16" />
+                      </div>
+                      <div class="slot-field slot-field-grow">
+                        <label class="field-label" for="slot-label-input">Label</label>
+                        <input
+                          type="text"
+                          id="slot-label-input"
+                          class="input input-sm"
+                          placeholder="idea"
+                          autocomplete="off"
+                        />
+                      </div>
+                      <div class="slot-field slot-field-action">
+                        <label class="field-label">&nbsp;</label>
+                        <button type="button" class="btn btn-primary btn-equal" id="btn-insert-slot">
+                          <i class="ph-light ph-plus" aria-hidden="true"></i>
+                          <span>Insert</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

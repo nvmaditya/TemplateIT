@@ -15,7 +15,13 @@ export const DELIMITER_PRESETS = [
   { id: 'triple', label: '<<<{ label }>>>', open: '<<<{', close: '}>>>' },
 ];
 
-export const DEFAULT_DELIMITER = DELIMITER_PRESETS[0];
+/** Default slot style: <<<{label}>>> */
+export const DEFAULT_DELIMITER = DELIMITER_PRESETS.find((p) => p.id === 'triple') || {
+  id: 'triple',
+  label: '<<<{ label }>>>',
+  open: '<<<{',
+  close: '}>>>',
+};
 
 /**
  * @param {string} s
