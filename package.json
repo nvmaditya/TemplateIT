@@ -1,10 +1,10 @@
 {
   "name": "templateit",
-  "version": "1.0.0",
-  "description": "Local Electron app for prompt templates with <<<{slot}>>> fill UI and version history",
+  "version": "1.1.0",
+  "description": "TemplateIT — local Electron app for prompt templates with fill slots, history, and offline storage",
   "main": "electron/main.cjs",
   "type": "module",
-  "author": "TemplateIt contributors",
+  "author": "TemplateIT contributors",
   "license": "MIT",
   "homepage": "https://github.com/nvmaditya/templateit",
   "repository": {
@@ -19,13 +19,15 @@
     "prompt",
     "templates",
     "chatbot",
-    "local-first"
+    "local-first",
+    "TemplateIT"
   ],
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/**/*.test.js",
     "smoke:main": "node scripts/smoke-main.mjs",
-    "prebuild": "npm test",
+    "icons": "node scripts/generate-icons.mjs",
+    "prebuild": "npm run icons && npm test",
     "build": "electron-builder --publish never",
     "build:win": "electron-builder --win --publish never",
     "build:dir": "electron-builder --win dir --publish never",
@@ -35,6 +37,7 @@
     "@phosphor-icons/web": "^2.1.2"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "electron": "^37.2.0",
     "electron-builder": "^26.15.3"
   },
@@ -44,20 +47,23 @@
   },
   "build": {
     "appId": "com.templateit.app",
-    "productName": "TemplateIt",
-    "copyright": "Copyright © 2026 TemplateIt contributors",
+    "productName": "TemplateIT",
+    "copyright": "Copyright © 2026 TemplateIT contributors",
     "directories": {
       "output": "dist",
       "buildResources": "build"
     },
+    "icon": "build/icon.png",
     "files": [
       "electron/**/*",
       "src/**/*",
       "package.json",
       "node_modules/@phosphor-icons/web/**/*"
     ],
+    "extraResources": [],
     "asar": true,
     "win": {
+      "icon": "build/icon.png",
       "target": [
         {
           "target": "nsis",
@@ -79,7 +85,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "TemplateIt"
+      "shortcutName": "TemplateIT",
+      "installerIcon": "build/icon.png",
+      "uninstallerIcon": "build/icon.png"
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"

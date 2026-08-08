@@ -1,5 +1,5 @@
 /**
- * TemplateIt renderer entry — wires surfaces, does not own feature logic.
+ * TemplateIT renderer entry — wires surfaces, does not own feature logic.
  */
 
 import { $, $$, setView, showToast } from './dom.js';
@@ -60,7 +60,7 @@ function bind() {
 async function boot() {
   if (!api()) {
     document.body.innerHTML =
-      '<p style="color:#fff;padding:2rem;font-family:sans-serif">TemplateIt must run inside Electron (<code>npm start</code>).</p>';
+      '<p style="color:#fff;padding:2rem;font-family:sans-serif">TemplateIT must run inside Electron (<code>npm start</code>).</p>';
     return;
   }
   bind();

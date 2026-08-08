@@ -1,46 +1,54 @@
-# TemplateIt — Product Design
+# TemplateIT — Product Design
 
 **Date:** 2026-08-08  
-**Status:** Frozen for implementation (goal harness)
+**Status:** Living product model (updated with shipped features)  
+**Product name:** TemplateIT
 
 ## Problem
 
-Writers reuse long chatbot prompts with a few variable slots. Today that means copy the prompt, hunt for placeholders, paste values by hand, and lose prior fills. TemplateIt is a local desktop app for saving those prompt templates, filling slots visually, copying the result, and keeping a history of filled versions without mutating the master template.
+Writers reuse long chatbot prompts with a few variable slots. Today that means copy the prompt, hunt for placeholders, paste values by hand, and lose prior fills. **TemplateIT** is a local desktop app for saving those prompt templates, filling slots visually, copying the result, and keeping a history of filled versions without mutating the master template.
 
 ## Product model
 
 ### Template
-- Durable local record: `id`, `title`, `body`, `createdAt`, `updatedAt`.
-- Body is plain text. Optional slots use the exact syntax `<<<{label}>>>` where `label` is a non-empty string without nested `>>>`.
+- Durable local record: `id`, `title`, `body`, `archived`, `pinned`, `slotDelimiter`, `createdAt`, `updatedAt`.
+- Body is plain text. Slots use a **single delimiter style per template**.
+- Default delimiter: open `<<<{` + close `}>>>` → `<<<{label}>>>`.
+- Custom open/close allowed; stored on the template and used for parse/fill.
 - Distinct labels become fill fields. The same label may appear multiple times; all occurrences share one field value.
 
 ### Fill session
-- Open a template → parse body into ordered segments (literal text + slot references).
-- User edits a map of `label → value`.
-- App derives **filled plain text** by substituting every marker with its value (empty string if unset).
+- Open a template → parse body with that template’s delimiter → ordered segments (literal text + slot references).
+- User edits a map of `label → value` (large values via multi-line compose).
+- App derives **filled plain text** by substituting every marker (empty string if unset).
 - The template body is never rewritten by filling or by saving history.
 
 ### History (fill version)
-- Belongs to one template: `id`, `templateId`, `values` (label→string), `filledText` (rendered snapshot), `createdAt`, optional `note`.
-- Saving history appends an entry; parent template body/title stay unchanged.
-- Opening a history entry shows saved filled text and can rehydrate field values for re-edit/copy.
+- Belongs to one template: `id`, `templateId`, `values`, `filledText`, `createdAt`, optional `note` (commit message).
+- Saving history appends an entry; parent template body stays unchanged.
+- Versions can be listed, opened, copied, or **deleted** individually.
+
+### Library & home
+- Create / rename / archive / delete templates.
+- **Pin** templates to Home for quick open.
+- Home shows centered empty state + pinned cards.
 
 ### Copy
 - From the fill view (or a history detail), user can copy the fully substituted prompt as plain text for a chatbot.
 
 ## Scope
 
-**In:** local Electron app, create/list/open/update templates, parse/fill UI, save/list/open history, clipboard copy, premium local UI with light-line icons.
+**In:** local Electron app, create/list/open/update templates, configurable slot delimiters, parse/fill UI, save/list/open/delete history, pin/archive, clipboard copy, branded premium local UI.
 
-**Out:** cloud sync, accounts, LLM APIs, nested/conditional placeholders, other marker syntaxes, OS-store packaging, tags/folders/search ranking.
+**Out:** cloud sync, accounts, multi-device, LLM APIs, nested/conditional placeholders, OS-store signing as a hard requirement.
 
 ## Architecture
 
 ```
 ┌─────────────┐  IPC   ┌──────────────┐
 │  Renderer   │◄──────►│  Main        │
-│  list/edit  │        │  userData    │
-│  fill/hist  │        │  store I/O   │
+│  modular UI │        │  userData    │
+│  surfaces   │        │  store I/O   │
 └──────┬──────┘        └──────▲───────┘
        │ pure domain          │
        ▼                      │
@@ -51,18 +59,18 @@ Writers reuse long chatbot prompts with a few variable slots. Today that means c
                        └──────────────┘
 ```
 
-- **Domain** (`src/domain`): pure functions — parse markers, substitute, append history records. Unit-tested without Electron.
-- **Store** (`src/domain/store`): read/write templates + history as JSON under a base directory (Electron `userData` in production; temp dir in tests).
-- **Main:** BrowserWindow, IPC handlers for store CRUD, clipboard write.
-- **Preload:** contextBridge exposing a narrow API.
-- **Renderer:** multi-view shell (list → editor → fill → history) with Ethereal Glass visual treatment and Phosphor Light icons.
+- **Domain** (`src/domain`): pure functions — parse markers, substitute, history, templates.
+- **Store**: read/write templates + history as JSON under a base directory.
+- **Main:** BrowserWindow (branded icon), IPC handlers, clipboard.
+- **Renderer:** multi-module shell (library, home, editor, slots, fill, history-view).
 
-## Placeholder syntax
+## Branding
 
-- Pattern: `<<<{label}>>>` (literal angle brackets and braces).
-- Label: trimmed interior; empty labels ignored as non-slots.
-- Parse is left-to-right; no escaping in v1.
-- Fill replaces each full marker substring with the value for that label.
+- Product display name: **TemplateIT**
+- Package name (npm): `templateit`
+- Icon source: `src/assets/templateit-icon.svg`
+- Wordmark: `src/assets/templateit-wordmark.svg`
+- Packaged raster: `build/icon.png` via `npm run icons`
 
 ## Persistence layout
 
@@ -74,24 +82,24 @@ Writers reuse long chatbot prompts with a few variable slots. Today that means c
 
 ## UI surfaces
 
-1. **Library** — list templates; create new; open; delete optional if simple.
-2. **Editor** — title + body; save; “Fill” to open fill view.
-3. **Fill** — body rendered with inline slot fields (or sidebar fields + preview); Save version; Copy filled text.
-4. **History** — list entries for current template; open detail (filled text + values).
+1. **Home** — empty state + pinned templates
+2. **Library** — list; create; open; pin/archive/rename/delete
+3. **Editor** — title + body; retractable insert slot; save; fill; history
+4. **Fill** — slot rail + compose + canvas; save version; copy
+5. **History** — version list; snapshot; copy; delete version
 
 ## Visual direction
 
-- **Vibe:** Ethereal Glass (deep OLED, soft mesh glow, glass cards, white hairlines).
-- **Layout:** Editorial split / focused work surface (sidebar library + main pane).
-- **Icons:** Phosphor Light (not Lucide/FA/Material thick defaults).
-- **Type:** Plus Jakarta Sans / Geist-style grotesk (no Inter/Roboto/Arial).
+- **Vibe:** Ethereal Glass (deep OLED, soft mesh glow, glass cards)
+- **Icons:** Phosphor Light + TemplateIT brand assets
+- **Type:** Plus Jakarta Sans / Instrument Serif
 
 ## Testing
 
-- Domain unit tests: multi-slot parse, exact fill string, body immutable after history append, store save/load round-trip with injectable path.
-- Electron: `npm start` / documented script; smoke require of main if GUI unavailable.
-- UI structure: assert views and icon imports in source.
+- Domain unit tests: multi-slot parse, fill, immutability, store round-trip, archive/pin/history delete
+- UI structure tests: surfaces, modular renderer files, layout width rules, brand strings
+- Electron: `npm start` / smoke scripts; package with `npm run build:win`
 
 ## Success criteria
 
-Matches goal acceptance: parse/fill with template intact; local lifecycle; history versions; copy-ready text; launchable Electron + premium UI with icon library.
+Parse/fill with template intact; local lifecycle; history versions + delete; pin to home; custom slot style (default `<<<{}>>>`); copy-ready text; launchable Electron app with TemplateIT branding and assets.

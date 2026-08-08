@@ -1,27 +1,31 @@
-# TemplateIt usage
+# TemplateIT usage
 
 ## Core flow
 
-1. **New template** — Create from the sidebar (or empty state).
-2. **Edit** — Set a title and paste your prompt body.
-3. **Mark slots** — Anywhere values should change per use, write `<<<{label}>>>`.
-4. **Save** — Persist title/body to local disk.
-5. **Fill** — Opens the fill session: one input per distinct label, live canvas, and final plain text.
-6. **Copy filled** — Puts the substituted prompt on the clipboard for a chatbot.
-7. **Save version** — Stores a history snapshot (field values + filled text + timestamp). The master template body is not changed.
-8. **History** — Browse prior fills for the current template; copy a snapshot or rehydrate values for another edit.
+1. **Home** — Centered empty state; create a template or open a **pinned** one.
+2. **New template** — From the sidebar or home CTA.
+3. **Edit** — Set a title and paste your prompt body.
+4. **Insert slot** — Expand the insert-slot panel; default markers are `<<<{label}>>>`. Custom open/close is saved on that template (one style per template).
+5. **Save** — Persist title, body, and slot style to local disk.
+6. **Fill** — Slot rail + multi-line compose for large values; live prompt canvas.
+7. **Copy filled** — Puts the substituted prompt on the clipboard for a chatbot.
+8. **Save version** — Optional commit message; stores values + filled text + time. Master template body is unchanged.
+9. **History** — Browse versions, copy a snapshot, or **delete** a version.
+10. **Library** — Rename, pin/unpin to home, archive, delete.
 
 ## Slot rules
 
 | Rule | Behavior |
 |------|----------|
-| Syntax | Exact form `<<<{label}>>>` |
-| Label | Non-empty text inside the braces (trimmed) |
+| Default syntax | `<<<{label}>>>` |
+| Custom syntax | Open + close strings set in Insert slot (e.g. `{` / `}`, `[[` / `]]`) |
+| Per template | One delimiter style only; saved with the template |
+| Label | Non-empty (trimmed); spaces become `_` when inserting via UI |
 | Reuse | Same label → one shared field; all occurrences fill together |
 | Missing value | Substitutes as empty string |
-| Empty `<<<{}>>>` | Not treated as a slot (left as literal text) |
+| Empty label | Not treated as a slot |
 
-### Example
+### Example (default style)
 
 Template body:
 
@@ -41,7 +45,7 @@ Fill:
 - `task` → `Review this PR for security issues`
 - `constraints` → `Be concise`
 
-Final plain text (what you copy):
+Copied plain text:
 
 ```text
 You are senior reviewer.
@@ -53,6 +57,21 @@ Constraints:
 Be concise
 ```
 
+## Library actions
+
+| Action | Effect |
+|--------|--------|
+| **Pin to home** | Shows a card on the Home screen |
+| **Archive** | Hides from active library (also unpins) |
+| **Rename** | Title only; body/history intact |
+| **Delete** | Removes template and all of its history |
+
+## History versions
+
+- **Save version** from the fill view (optional message).
+- **Delete version** from the history list (trash) or snapshot panel.
+- Deleting a version never rewrites the template body.
+
 ## Data location
 
 By default, Electron stores JSON under the app **userData** directory:
@@ -62,22 +81,17 @@ By default, Electron stores JSON under the app **userData** directory:
 {userData}/templateit/history.json
 ```
 
-On Windows this is typically under `%APPDATA%\templateit\…`.
+On Windows this is typically under `%APPDATA%\templateit\…` (product data folder may appear as **TemplateIT**).
 
-For development or tests, override with:
+For development or tests:
 
-```bash
-# PowerShell
+```powershell
 $env:TEMPLATEIT_DATA_DIR = "C:\path\to\data"
 npm start
 ```
 
-## What is not stored in history
+## What is out of scope
 
-Saving a version does **not**:
-
-- Rewrite the template body
-- Fork a new template
-- Sync to the cloud
-
-History is a local fill snapshot list only.
+- Cloud sync, accounts, multi-device
+- In-app LLM / chatbot
+- Nested or conditional placeholders

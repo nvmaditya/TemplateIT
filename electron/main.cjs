@@ -18,13 +18,15 @@ async function initStore() {
 }
 
 function createWindow() {
+  const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
   const win = new BrowserWindow({
     width: 1280,
     height: 840,
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#050505',
-    title: 'TemplateIt',
+    title: 'TemplateIT',
+    icon: iconPath,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

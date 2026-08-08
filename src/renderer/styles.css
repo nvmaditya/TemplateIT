@@ -1,4 +1,4 @@
-/* Ethereal Glass — TemplateIt
+/* Ethereal Glass — TemplateIT
    Vibe: deep OLED + soft mesh + double-bezel cards
    Type: Plus Jakarta Sans + Instrument Serif
    Motion: cubic-bezier spring, transform/opacity only
@@ -119,18 +119,40 @@ code {
   overflow: hidden;
 }
 
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.55rem 0 0;
+  min-width: 0;
+}
+
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 0.75rem;
+  display: block;
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.2);
+}
+
+.brand-text {
+  min-width: 0;
+}
+
 .brand-title {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: 2rem;
-  margin: 0.25rem 0 0;
+  font-size: 1.65rem;
+  margin: 0;
   letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
 .brand-sub {
-  margin: 0.35rem 0 0;
+  margin: 0.2rem 0 0;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .eyebrow {

@@ -1,8 +1,16 @@
-# Build resources
+# Build resources (TemplateIT)
 
-Optional assets for **electron-builder** (`buildResources`):
+Generated / packaging assets for **electron-builder** (`buildResources`).
 
-- `icon.ico` — Windows app/installer icon (optional; builder uses a default if missing)
-- `icon.png` — source icon (optional)
+| File | Source | Purpose |
+|------|--------|---------|
+| `icon.png` | `src/assets/templateit-icon.svg` via `npm run icons` | Windows app + installer icon |
+| `icon-256.png` | same | Alternate size |
+| `icon.svg` | copy of asset | Reference |
+| `wordmark.svg` | `src/assets/templateit-wordmark.svg` | Reference |
 
-Drop icons here when you brand the release; builds succeed without custom icons.
+Do not hand-edit PNGs — regenerate with:
+
+```bash
+npm run icons
+```
