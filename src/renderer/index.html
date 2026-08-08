@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TemplateIt</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../node_modules/@phosphor-icons/web/src/regular/style.css" />
+    <link rel="stylesheet" href="../../node_modules/@phosphor-icons/web/src/light/style.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="mesh" aria-hidden="true"></div>
+    <div class="app">
+      <aside class="sidebar bezel">
+        <div class="sidebar-inner">
+          <div class="brand">
+            <span class="eyebrow">Local · Offline</span>
+            <h1 class="brand-title">TemplateIt</h1>
+            <p class="brand-sub">Prompt shells with fill history</p>
+          </div>
+
+          <button type="button" class="btn btn-primary" id="btn-new" data-action="new">
+            <span>New template</span>
+            <span class="btn-icon" aria-hidden="true"><i class="ph-light ph-plus"></i></span>
+          </button>
+
+          <div class="lib-head">
+            <span class="lib-label">Library</span>
+            <i class="ph-light ph-stack" aria-hidden="true"></i>
+          </div>
+          <ul class="template-list" id="template-list" role="list"></ul>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- Empty state -->
+        <section class="view" id="view-empty" data-view="empty">
+          <div class="empty bezel">
+            <div class="empty-inner">
+              <i class="ph-light ph-text-aa empty-icon" aria-hidden="true"></i>
+              <h2>No template selected</h2>
+              <p>Create a template, paste a prompt with <code>&lt;&lt;&lt;{slot}&gt;&gt;&gt;</code> markers, then fill and copy.</p>
+              <button type="button" class="btn btn-primary" data-action="new">
+                <span>Create first template</span>
+                <span class="btn-icon"><i class="ph-light ph-arrow-up-right"></i></span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Editor -->
+        <section class="view hidden" id="view-editor" data-view="editor">
+          <header class="pane-head">
+            <div>
+              <span class="eyebrow">Editor</span>
+              <h2 class="pane-title" id="editor-heading">Edit template</h2>
+            </div>
+            <div class="pane-actions">
+              <button type="button" class="btn btn-ghost" id="btn-history" title="History">
+                <i class="ph-light ph-clock-counter-clockwise"></i>
+                <span>History</span>
+              </button>
+              <button type="button" class="btn btn-ghost" id="btn-fill">
+                <i class="ph-light ph-textbox"></i>
+                <span>Fill</span>
+              </button>
+              <button type="button" class="btn btn-primary" id="btn-save">
+                <span>Save</span>
+                <span class="btn-icon"><i class="ph-light ph-floppy-disk"></i></span>
+              </button>
+            </div>
+          </header>
+
+          <div class="field-bezel">
+            <div class="field-core">
+              <label class="field-label" for="field-title">Title</label>
+              <input type="text" id="field-title" class="input" placeholder="e.g. Code review prompt" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="field-bezel body-field">
+            <div class="field-core">
+              <label class="field-label" for="field-body">Prompt body</label>
+              <textarea
+                id="field-body"
+                class="textarea"
+                rows="16"
+                placeholder="Paste your prompt. Use <<<{idea}>>> for slots."
+                spellcheck="false"
+              ></textarea>
+              <p class="hint">Slots: <code>&lt;&lt;&lt;{label}&gt;&gt;&gt;</code> — same label shares one field.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Fill view -->
+        <section class="view hidden" id="view-fill" data-view="fill">
+          <header class="pane-head">
+            <div>
+              <span class="eyebrow">Fill session</span>
+              <h2 class="pane-title" id="fill-heading">Fill template</h2>
+            </div>
+            <div class="pane-actions">
+              <button type="button" class="btn btn-ghost" id="btn-back-editor">
+                <i class="ph-light ph-arrow-left"></i>
+                <span>Editor</span>
+              </button>
+              <button type="button" class="btn btn-ghost" id="btn-save-version">
+                <i class="ph-light ph-git-commit"></i>
+                <span>Save version</span>
+              </button>
+              <button type="button" class="btn btn-primary" id="btn-copy">
+                <span>Copy filled</span>
+                <span class="btn-icon"><i class="ph-light ph-copy"></i></span>
+              </button>
+            </div>
+          </header>
+
+          <div class="fill-grid">
+            <div class="field-bezel">
+              <div class="field-core">
+                <div class="lib-head">
+                  <span class="lib-label">Slots</span>
+                  <i class="ph-light ph-brackets-curly" aria-hidden="true"></i>
+                </div>
+                <div id="slot-fields" class="slot-fields"></div>
+                <p class="hint" id="slot-empty-hint" hidden>No <code>&lt;&lt;&lt;{…}&gt;&gt;&gt;</code> slots in this template.</p>
+              </div>
+            </div>
+
+            <div class="field-bezel">
+              <div class="field-core">
+                <div class="lib-head">
+                  <span class="lib-label">Prompt canvas</span>
+                  <i class="ph-light ph-article" aria-hidden="true"></i>
+                </div>
+                <div id="prompt-canvas" class="prompt-canvas" aria-live="polite"></div>
+              </div>
+            </div>
+
+            <div class="field-bezel fill-preview-bezel">
+              <div class="field-core">
+                <div class="lib-head">
+                  <span class="lib-label">Final plain text</span>
+                  <i class="ph-light ph-export" aria-hidden="true"></i>
+                </div>
+                <pre id="filled-output" class="filled-output"></pre>
+              </div>
+            </div>
+          </div>
+          <p class="toast" id="toast" hidden role="status"></p>
+        </section>
+
+        <!-- History -->
+        <section class="view hidden" id="view-history" data-view="history">
+          <header class="pane-head">
+            <div>
+              <span class="eyebrow">Versions</span>
+              <h2 class="pane-title" id="history-heading">Fill history</h2>
+            </div>
+            <div class="pane-actions">
+              <button type="button" class="btn btn-ghost" id="btn-back-editor-from-hist">
+                <i class="ph-light ph-arrow-left"></i>
+                <span>Editor</span>
+              </button>
+            </div>
+          </header>
+
+          <div class="history-layout">
+            <div class="field-bezel">
+              <div class="field-core">
+                <ul class="history-list" id="history-list" role="list"></ul>
+                <p class="hint" id="history-empty" hidden>No saved versions yet. Fill the template and use Save version.</p>
+              </div>
+            </div>
+            <div class="field-bezel">
+              <div class="field-core">
+                <div class="lib-head">
+                  <span class="lib-label">Snapshot</span>
+                  <i class="ph-light ph-file-text" aria-hidden="true"></i>
+                </div>
+                <pre id="history-detail" class="filled-output">Select a version</pre>
+                <button type="button" class="btn btn-primary" id="btn-copy-history" hidden>
+                  <span>Copy snapshot</span>
+                  <span class="btn-icon"><i class="ph-light ph-copy"></i></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "templateit",
+  "version": "1.0.0",
+  "description": "Local Electron app for prompt templates with <<<{slot}>>> fill UI and version history",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/**/*.test.js",
+    "smoke:main": "node scripts/smoke-main.mjs"
+  },
+  "keywords": [
+    "electron",
+    "prompt",
+    "templates"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^37.2.0"
+  },
+  "dependencies": {
+    "@phosphor-icons/web": "^2.1.2"
+  },
+  "allowScripts": {
+    "electron@37.10.3": true
+  }
+}
