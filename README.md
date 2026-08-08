@@ -1,4 +1,4 @@
-# TemplateIt
+# TemplateIT
 
 **Local desktop app for prompt templates.** Save reusable chatbot prompts, fill `<<<{slot}>>>` fields in a clean UI, copy the result, and keep fill history — without ever mutating the master template.
 
