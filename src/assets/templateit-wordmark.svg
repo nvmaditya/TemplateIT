@@ -1,0 +1,30 @@
+<svg viewBox="0 0 820 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @font-face {
+        font-family: 'TemplateIT Display';
+        src: url(data:font/woff2;base64,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) format('woff2');
+        font-weight: 500;
+        font-style: normal;
+      }
+    </style>
+    <linearGradient id="accentGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#2DD4BF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- back card -->
+  <g transform="translate(105,124) rotate(-13) scale(0.5)">
+    <path d="M -118,-85 L 132,-85 A18,18 0 0 1 150,-67 L 150,67 A18,18 0 0 1 132,85 L -132,85 A18,18 0 0 1 -150,67 L -150,-53 Z" fill="#D2CFC9"/>
+  </g>
+  <!-- front card -->
+  <g transform="translate(95,110) rotate(-8) scale(0.5)">
+    <path d="M -118,-85 L 132,-85 A18,18 0 0 1 150,-67 L 150,67 A18,18 0 0 1 132,85 L -132,85 A18,18 0 0 1 -150,67 L -150,-53 Z" fill="#F4F1EA" stroke="#B7AF9C" stroke-opacity="0.5" stroke-width="3"/>
+    <rect x="-104" y="-17" width="46" height="34" rx="8" fill="#0A0A0D"/>
+    <rect x="-32" y="-17" width="64" height="34" rx="8" fill="url(#accentGrad)"/>
+    <rect x="58" y="-17" width="46" height="34" rx="8" fill="#0A0A0D"/>
+  </g>
+
+  <text x="235" y="140" font-family="'TemplateIT Display','Playfair Display', Georgia, serif" font-weight="500" font-size="90" fill="#F4F1EA" letter-spacing="0.5">TemplateIT</text>
+</svg>
