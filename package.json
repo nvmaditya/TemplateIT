@@ -39,7 +39,8 @@
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "electron": "^37.2.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "png-to-ico": "^3.0.2"
   },
   "allowScripts": {
     "electron@37.10.3": true,
@@ -53,17 +54,16 @@
       "output": "dist",
       "buildResources": "build"
     },
-    "icon": "build/icon.png",
+    "icon": "build/icon.ico",
     "files": [
       "electron/**/*",
       "src/**/*",
       "package.json",
       "node_modules/@phosphor-icons/web/**/*"
     ],
-    "extraResources": [],
     "asar": true,
     "win": {
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -86,8 +86,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "TemplateIT",
-      "installerIcon": "build/icon.png",
-      "uninstallerIcon": "build/icon.png"
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"

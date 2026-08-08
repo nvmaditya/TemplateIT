@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, clipboard, shell } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -18,7 +19,9 @@ async function initStore() {
 }
 
 function createWindow() {
-  const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
+  const iconIco = path.join(__dirname, '..', 'build', 'icon.ico');
+  const iconPng = path.join(__dirname, '..', 'build', 'icon.png');
+  const iconPath = fs.existsSync(iconIco) ? iconIco : iconPng;
   const win = new BrowserWindow({
     width: 1280,
     height: 840,
