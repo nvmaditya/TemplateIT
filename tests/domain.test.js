@@ -71,6 +71,7 @@ describe('history + template immutability', () => {
       templateId: template.id,
       values: { idea: 'refactor' },
       filledText: fillTemplate(template.body, { idea: 'refactor' }),
+      note: 'after cleanup',
       idFactory: () => 'hist-1',
       nowFactory: () => '2026-01-02T00:00:00.000Z',
     });
@@ -79,6 +80,7 @@ describe('history + template immutability', () => {
     assert.equal(template.body, bodyBefore);
     assert.equal(template.body, 'Do <<<{idea}>>> carefully');
     assert.equal(entry.filledText, 'Do refactor carefully');
+    assert.equal(entry.note, 'after cleanup');
     assert.deepEqual(listHistoryForTemplate(history, 'tmpl-1').map((h) => h.id), [
       'hist-1',
     ]);
@@ -95,6 +97,22 @@ describe('history + template immutability', () => {
     assert.equal(t.body, 'x');
     assert.equal(u.body, 'y');
     assert.equal(u.updatedAt, 't2');
+  });
+
+  it('supports rename and archive without clearing body', () => {
+    const t = createTemplate({
+      title: 'Old',
+      body: 'keep <<<{x}>>>',
+      idFactory: () => 'id2',
+      nowFactory: () => 't1',
+    });
+    const renamed = updateTemplate(t, { title: 'New' }, () => 't2');
+    assert.equal(renamed.title, 'New');
+    assert.equal(renamed.body, 'keep <<<{x}>>>');
+    assert.equal(renamed.archived, false);
+    const archived = updateTemplate(renamed, { archived: true }, () => 't3');
+    assert.equal(archived.archived, true);
+    assert.equal(archived.body, 'keep <<<{x}>>>');
   });
 });
 
@@ -136,5 +154,28 @@ describe('store persistence round-trip', () => {
     // files exist on disk
     assert.ok(fs.existsSync(path.join(dir, 'templates.json')));
     assert.ok(fs.existsSync(path.join(dir, 'history.json')));
+  });
+
+  it('archives hide from default list; history notes persist', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'templateit-arch-'));
+    const store = createStore(dir);
+    const t = store.createTemplate({ title: 'Live', body: 'Hi <<<{n}>>>' });
+    store.saveHistoryEntry(t.id, {
+      values: { n: 'Ada' },
+      filledText: 'Hi Ada',
+      note: 'first pass',
+    });
+    const hist = store.listHistory(t.id);
+    assert.equal(hist[0].note, 'first pass');
+
+    store.updateTemplate(t.id, { archived: true, title: 'Live renamed' });
+    assert.equal(store.listTemplates().length, 0);
+    assert.equal(store.listTemplates({ onlyArchived: true }).length, 1);
+    assert.equal(store.listTemplates({ onlyArchived: true })[0].title, 'Live renamed');
+    assert.equal(store.getTemplate(t.id).body, 'Hi <<<{n}>>>');
+
+    store.deleteTemplate(t.id);
+    assert.equal(store.listTemplates({ includeArchived: true }).length, 0);
+    assert.equal(store.listHistory(t.id).length, 0);
   });
 });

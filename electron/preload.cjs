@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('templateit', {
-  listTemplates: () => ipcRenderer.invoke('templates:list'),
+  listTemplates: (opts) => ipcRenderer.invoke('templates:list', opts || {}),
   getTemplate: (id) => ipcRenderer.invoke('templates:get', id),
   createTemplate: (data) => ipcRenderer.invoke('templates:create', data),
   updateTemplate: (id, patch) => ipcRenderer.invoke('templates:update', id, patch),

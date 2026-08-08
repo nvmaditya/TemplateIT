@@ -5,7 +5,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { createTemplate, updateTemplate } from './templates.js';
+import {
+  createTemplate,
+  updateTemplate,
+  normalizeTemplate,
+} from './templates.js';
 import { appendHistory, createHistoryEntry, listHistoryForTemplate } from './history.js';
 
 const TEMPLATES_FILE = 'templates.json';
@@ -45,9 +49,10 @@ export function createStore(baseDir) {
     fs.renameSync(tmp, full);
   }
 
-  function listTemplates() {
+  function readTemplates() {
     const list = readJson(TEMPLATES_FILE, []);
-    return Array.isArray(list) ? list : [];
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeTemplate);
   }
 
   function saveTemplates(list) {
@@ -63,25 +68,39 @@ export function createStore(baseDir) {
     writeJson(HISTORY_FILE, list);
   }
 
+  function sortByUpdated(list) {
+    return list.slice().sort((a, b) =>
+      a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
+    );
+  }
+
   return {
     baseDir,
 
-    listTemplates() {
-      return listTemplates().slice().sort((a, b) =>
-        a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
-      );
+    /**
+     * @param {{ includeArchived?: boolean, onlyArchived?: boolean }} [opts]
+     */
+    listTemplates(opts = {}) {
+      const { includeArchived = false, onlyArchived = false } = opts;
+      let list = readTemplates();
+      if (onlyArchived) {
+        list = list.filter((t) => t.archived);
+      } else if (!includeArchived) {
+        list = list.filter((t) => !t.archived);
+      }
+      return sortByUpdated(list);
     },
 
     getTemplate(id) {
-      return listTemplates().find((t) => t.id === id) || null;
+      return readTemplates().find((t) => t.id === id) || null;
     },
 
     /**
-     * @param {{ title?: string, body?: string }} data
+     * @param {{ title?: string, body?: string, archived?: boolean }} data
      */
     createTemplate(data = {}) {
       const t = createTemplate(data);
-      const list = listTemplates();
+      const list = readTemplates();
       list.push(t);
       saveTemplates(list);
       return t;
@@ -89,10 +108,10 @@ export function createStore(baseDir) {
 
     /**
      * @param {string} id
-     * @param {{ title?: string, body?: string }} patch
+     * @param {{ title?: string, body?: string, archived?: boolean }} patch
      */
     updateTemplate(id, patch) {
-      const list = listTemplates();
+      const list = readTemplates();
       const idx = list.findIndex((t) => t.id === id);
       if (idx === -1) return null;
       const next = updateTemplate(list[idx], patch);
@@ -102,7 +121,7 @@ export function createStore(baseDir) {
     },
 
     deleteTemplate(id) {
-      const list = listTemplates().filter((t) => t.id !== id);
+      const list = readTemplates().filter((t) => t.id !== id);
       saveTemplates(list);
       const hist = listAllHistory().filter((h) => h.templateId !== id);
       saveHistory(hist);
@@ -119,7 +138,7 @@ export function createStore(baseDir) {
      * @param {{ values: Record<string, string>, filledText: string, note?: string }} payload
      */
     saveHistoryEntry(templateId, payload) {
-      const template = listTemplates().find((t) => t.id === templateId);
+      const template = readTemplates().find((t) => t.id === templateId);
       if (!template) {
         throw new Error(`Template not found: ${templateId}`);
       }
@@ -133,7 +152,7 @@ export function createStore(baseDir) {
       const next = appendHistory(listAllHistory(), entry);
       saveHistory(next);
       // Assert immutability of template body after write
-      const still = listTemplates().find((t) => t.id === templateId);
+      const still = readTemplates().find((t) => t.id === templateId);
       if (!still || still.body !== bodyBefore) {
         throw new Error('Invariant violated: template body changed after history save');
       }

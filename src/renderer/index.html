@@ -29,36 +29,43 @@
             <p class="brand-sub">Prompt shells with fill history</p>
           </div>
 
-          <button type="button" class="btn btn-primary" id="btn-new" data-action="new">
+          <button type="button" class="btn btn-primary btn-equal" id="btn-new" data-action="new">
+            <i class="ph-light ph-plus" aria-hidden="true"></i>
             <span>New template</span>
-            <span class="btn-icon" aria-hidden="true"><i class="ph-light ph-plus"></i></span>
           </button>
 
           <div class="lib-head">
             <span class="lib-label">Library</span>
-            <i class="ph-light ph-stack" aria-hidden="true"></i>
+            <button
+              type="button"
+              class="lib-filter-btn"
+              id="btn-toggle-archived"
+              title="Show archived"
+              aria-pressed="false"
+            >
+              <i class="ph-light ph-archive" aria-hidden="true"></i>
+            </button>
           </div>
+          <p class="lib-mode-hint" id="lib-mode-hint" hidden>Showing archived</p>
           <ul class="template-list" id="template-list" role="list"></ul>
         </div>
       </aside>
 
       <main class="main">
-        <!-- Empty state -->
         <section class="view" id="view-empty" data-view="empty">
           <div class="empty bezel">
             <div class="empty-inner">
               <i class="ph-light ph-text-aa empty-icon" aria-hidden="true"></i>
               <h2>No template selected</h2>
               <p>Create a template, paste a prompt with <code>&lt;&lt;&lt;{slot}&gt;&gt;&gt;</code> markers, then fill and copy.</p>
-              <button type="button" class="btn btn-primary" data-action="new">
+              <button type="button" class="btn btn-primary btn-equal" data-action="new">
+                <i class="ph-light ph-arrow-up-right" aria-hidden="true"></i>
                 <span>Create first template</span>
-                <span class="btn-icon"><i class="ph-light ph-arrow-up-right"></i></span>
               </button>
             </div>
           </div>
         </section>
 
-        <!-- Editor -->
         <section class="view view-fill-height hidden" id="view-editor" data-view="editor">
           <header class="pane-head pane-head-compact">
             <div>
@@ -66,39 +73,46 @@
               <h2 class="pane-title" id="editor-heading">Edit template</h2>
             </div>
             <div class="pane-actions">
-              <button type="button" class="btn btn-ghost" id="btn-history" title="History">
-                <i class="ph-light ph-clock-counter-clockwise"></i>
+              <button type="button" class="btn btn-ghost btn-equal" id="btn-history" title="History">
+                <i class="ph-light ph-clock-counter-clockwise" aria-hidden="true"></i>
                 <span>History</span>
               </button>
-              <button type="button" class="btn btn-ghost" id="btn-fill">
-                <i class="ph-light ph-textbox"></i>
+              <button type="button" class="btn btn-ghost btn-equal" id="btn-fill">
+                <i class="ph-light ph-textbox" aria-hidden="true"></i>
                 <span>Fill</span>
               </button>
-              <button type="button" class="btn btn-primary" id="btn-save">
+              <button type="button" class="btn btn-primary btn-equal" id="btn-save">
+                <i class="ph-light ph-floppy-disk" aria-hidden="true"></i>
                 <span>Save</span>
-                <span class="btn-icon"><i class="ph-light ph-floppy-disk"></i></span>
               </button>
             </div>
           </header>
 
           <div class="editor-stack">
-            <div class="field-bezel title-bezel">
-              <div class="field-core field-core-tight">
+            <div class="field-bezel title-bezel full-width">
+              <div class="field-core field-core-tight full-width">
                 <label class="field-label" for="field-title">Title</label>
                 <input type="text" id="field-title" class="input" placeholder="e.g. Code review prompt" autocomplete="off" />
               </div>
             </div>
 
-            <div class="field-bezel body-field flex-fill">
-              <div class="field-core field-core-prose flex-col">
-                <div class="lib-head">
+            <div class="field-bezel body-field flex-fill full-width">
+              <div class="field-core field-core-prose flex-col full-width">
+                <div class="lib-head body-toolbar">
                   <label class="field-label" for="field-body">Prompt body</label>
-                  <span class="hint-inline">Use <code>&lt;&lt;&lt;{label}&gt;&gt;&gt;</code> for slots</span>
+                  <div class="slot-insert" id="slot-insert">
+                    <span class="slot-insert-label">Insert slot</span>
+                    <div class="slot-chip-row" id="slot-preset-row"></div>
+                    <button type="button" class="slot-preset custom" id="btn-slot-custom" title="Custom label">
+                      <i class="ph-light ph-plus" aria-hidden="true"></i>
+                      Custom
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   id="field-body"
-                  class="textarea prose-surface"
-                  placeholder="Paste your prompt. Mark variables with <<<{idea}>>>."
+                  class="textarea prose-surface full-width"
+                  placeholder="Paste your prompt. Insert slots from the presets above or type <<<{label}>>>."
                   spellcheck="true"
                 ></textarea>
               </div>
@@ -106,7 +120,6 @@
           </div>
         </section>
 
-        <!-- Fill view -->
         <section class="view view-fill-height hidden" id="view-fill" data-view="fill">
           <header class="pane-head pane-head-compact">
             <div>
@@ -114,25 +127,24 @@
               <h2 class="pane-title" id="fill-heading">Fill template</h2>
             </div>
             <div class="pane-actions">
-              <button type="button" class="btn btn-ghost" id="btn-back-editor">
-                <i class="ph-light ph-arrow-left"></i>
+              <button type="button" class="btn btn-ghost btn-equal" id="btn-back-editor">
+                <i class="ph-light ph-arrow-left" aria-hidden="true"></i>
                 <span>Editor</span>
               </button>
-              <button type="button" class="btn btn-ghost" id="btn-save-version">
-                <i class="ph-light ph-git-commit"></i>
+              <button type="button" class="btn btn-ghost btn-equal" id="btn-save-version">
+                <i class="ph-light ph-git-commit" aria-hidden="true"></i>
                 <span>Save version</span>
               </button>
-              <button type="button" class="btn btn-primary" id="btn-copy">
+              <button type="button" class="btn btn-primary btn-equal" id="btn-copy">
+                <i class="ph-light ph-copy" aria-hidden="true"></i>
                 <span>Copy filled</span>
-                <span class="btn-icon"><i class="ph-light ph-copy"></i></span>
               </button>
             </div>
           </header>
 
-          <div class="fill-grid flex-fill">
-            <!-- Slot compose: rail + one large editor -->
+          <div class="fill-grid flex-fill full-width">
             <div class="field-bezel fill-slots-bezel flex-fill">
-              <div class="field-core field-core-prose flex-col fill-slots-core">
+              <div class="field-core field-core-prose flex-col fill-slots-core full-width">
                 <div class="lib-head">
                   <span class="lib-label">Slots</span>
                   <i class="ph-light ph-brackets-curly" aria-hidden="true"></i>
@@ -148,31 +160,28 @@
                   </div>
                   <textarea
                     id="slot-editor"
-                    class="slot-editor prose-surface"
+                    class="slot-editor prose-surface full-width"
                     rows="8"
                     placeholder="Paste or type the value for this slot…"
                     spellcheck="true"
                   ></textarea>
                 </div>
-                <!-- kept for structure tests / empty state container -->
                 <div id="slot-fields" class="slot-fields-sr" aria-hidden="true"></div>
               </div>
             </div>
 
-            <div class="field-bezel fill-canvas-bezel flex-fill">
-              <div class="field-core field-core-prose flex-col">
+            <div class="field-bezel fill-canvas-bezel flex-fill full-width">
+              <div class="field-core field-core-prose flex-col full-width">
                 <div class="lib-head">
                   <span class="lib-label">Prompt canvas</span>
                   <i class="ph-light ph-article" aria-hidden="true"></i>
                 </div>
-                <div id="prompt-canvas" class="prompt-canvas prose-surface" aria-live="polite"></div>
+                <div id="prompt-canvas" class="prompt-canvas prose-surface full-width" aria-live="polite"></div>
               </div>
             </div>
           </div>
-          <p class="toast" id="toast" hidden role="status"></p>
         </section>
 
-        <!-- History -->
         <section class="view view-fill-height hidden" id="view-history" data-view="history">
           <header class="pane-head pane-head-compact">
             <div>
@@ -180,30 +189,31 @@
               <h2 class="pane-title" id="history-heading">Fill history</h2>
             </div>
             <div class="pane-actions">
-              <button type="button" class="btn btn-ghost" id="btn-back-editor-from-hist">
-                <i class="ph-light ph-arrow-left"></i>
+              <button type="button" class="btn btn-ghost btn-equal" id="btn-back-editor-from-hist">
+                <i class="ph-light ph-arrow-left" aria-hidden="true"></i>
                 <span>Editor</span>
               </button>
             </div>
           </header>
 
-          <div class="history-layout flex-fill">
+          <div class="history-layout flex-fill full-width">
             <div class="field-bezel flex-fill">
-              <div class="field-core field-core-prose flex-col">
+              <div class="field-core field-core-prose flex-col full-width">
                 <ul class="history-list flex-fill" id="history-list" role="list"></ul>
                 <p class="hint" id="history-empty" hidden>No saved versions yet. Fill the template and use Save version.</p>
               </div>
             </div>
-            <div class="field-bezel flex-fill">
-              <div class="field-core field-core-prose flex-col">
+            <div class="field-bezel flex-fill full-width">
+              <div class="field-core field-core-prose flex-col full-width">
                 <div class="lib-head">
                   <span class="lib-label">Snapshot</span>
                   <i class="ph-light ph-file-text" aria-hidden="true"></i>
                 </div>
-                <div id="history-detail" class="history-detail prose-surface">Select a version</div>
-                <button type="button" class="btn btn-primary" id="btn-copy-history" hidden>
+                <p class="history-note" id="history-note" hidden></p>
+                <div id="history-detail" class="history-detail prose-surface full-width">Select a version</div>
+                <button type="button" class="btn btn-primary btn-equal" id="btn-copy-history" hidden>
+                  <i class="ph-light ph-copy" aria-hidden="true"></i>
                   <span>Copy snapshot</span>
-                  <span class="btn-icon"><i class="ph-light ph-copy"></i></span>
                 </button>
               </div>
             </div>
@@ -211,6 +221,24 @@
         </section>
       </main>
     </div>
+
+    <!-- Modal shell -->
+    <div class="modal-root" id="modal-root" hidden>
+      <div class="modal-backdrop" id="modal-backdrop"></div>
+      <div class="modal-bezel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-core">
+          <h3 class="modal-title" id="modal-title">Dialog</h3>
+          <p class="modal-desc" id="modal-desc" hidden></p>
+          <div id="modal-body" class="modal-body"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost btn-equal" id="modal-cancel">Cancel</button>
+            <button type="button" class="btn btn-primary btn-equal" id="modal-confirm">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="toast" id="toast" hidden role="status"></p>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

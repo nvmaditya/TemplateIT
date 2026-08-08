@@ -46,7 +46,7 @@ function createWindow() {
 }
 
 function registerIpc() {
-  ipcMain.handle('templates:list', () => store.listTemplates());
+  ipcMain.handle('templates:list', (_e, opts) => store.listTemplates(opts || {}));
   ipcMain.handle('templates:get', (_e, id) => store.getTemplate(id));
   ipcMain.handle('templates:create', (_e, data) => store.createTemplate(data || {}));
   ipcMain.handle('templates:update', (_e, id, patch) => store.updateTemplate(id, patch || {}));

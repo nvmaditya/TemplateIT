@@ -28,6 +28,10 @@ describe('UI structure (shipped renderer)', () => {
     assert.match(html, /id="history-list"/);
     assert.match(html, /id="btn-copy"/);
     assert.match(html, /id="btn-save-version"/);
+    assert.match(html, /id="btn-toggle-archived"/);
+    assert.match(html, /id="slot-insert"/);
+    assert.match(html, /id="btn-slot-custom"/);
+    assert.match(html, /id="modal-root"/);
     // Final plain text panel removed — copy uses fillTemplate, not a third surface
     assert.doesNotMatch(html, /id="filled-output"/);
     assert.doesNotMatch(html, /Final plain text/i);
@@ -45,14 +49,18 @@ describe('UI structure (shipped renderer)', () => {
     assert.match(appJs, /parseSlots|fillTemplate/);
     assert.match(appJs, /copyText|saveHistory/);
     assert.match(appJs, /selectSlot|slot-editor|activeSlot/);
+    assert.match(appJs, /insertSlotAtCursor|SLOT_PRESETS/);
+    assert.match(appJs, /renameTemplate|toggleArchive|deleteTemplate/);
+    assert.match(appJs, /note/);
   });
 
   it('applies Ethereal Glass / premium prose styling (not terminal mono)', () => {
     assert.match(css, /#050505|Ethereal|double-bezel|Plus Jakarta|Instrument Serif/i);
     assert.match(css, /cubic-bezier\(0\.32,\s*0\.72,\s*0,\s*1\)/);
     assert.match(css, /prose-surface/);
-    // Prompt body / canvas use UI font, not Cascadia terminal mono as primary
     assert.match(css, /\.textarea\.prose-surface|\.prompt-canvas/);
+    assert.match(css, /--btn-h|btn-equal/);
+    assert.match(css, /minmax\(0,\s*1fr\)|full-width/);
     assert.doesNotMatch(css, /\.textarea\s*\{[^}]*Cascadia Code/);
   });
 });
